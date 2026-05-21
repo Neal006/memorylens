@@ -24,6 +24,7 @@ def main() -> None:
     parser.add_argument("--checkpoints", nargs="+",  type=int, default=[10, 25, 50, 75, 100])
     parser.add_argument("--backends",    nargs="+",  default=["naive", "rag", "cascading"])
     parser.add_argument("--output",      type=str,   default="results.json")
+    parser.add_argument("--log",         action="store_true", help="Save run to experiment_logs/")
     args = parser.parse_args()
 
     if not os.getenv("GROQ_API_KEY"):
@@ -69,10 +70,15 @@ def main() -> None:
         vals = "  ".join(f"{v:6d}" for v in display[name]["tokens"])
         print(f"  {name:20s}  {vals}")
 
-    # Save
     with open(args.output, "w") as fh:
         json.dump(display, fh, indent=2)
     print(f"\nResults saved → {args.output}")
+
+    if args.log:
+        from evaluation.logger import log_run
+        path = log_run(display, {"total_turns": args.turns, "backends": args.backends})
+        print(f"Experiment logged → {path}")
+
     print("Visualise: streamlit run dashboard.py")
 
 

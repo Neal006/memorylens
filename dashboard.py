@@ -246,14 +246,18 @@ if run_btn:
 
         with st.spinner("Running benchmark…"):
             from evaluation.benchmark import run_benchmark, results_to_display_dict
+            from evaluation.logger import log_run
             raw = run_benchmark(
                 total_turns=total_turns,
                 eval_checkpoints=sorted(checkpoints),
                 backends=backends,
                 progress=push_log,
             )
-            st.session_state.results = results_to_display_dict(raw)
+            display = results_to_display_dict(raw)
+            st.session_state.results = display
             st.session_state.is_demo = False
+            saved = log_run(display, {"total_turns": total_turns, "backends": backends})
+            push_log(f"Results saved → {saved}")
 
         log_area.empty()
         st.rerun()

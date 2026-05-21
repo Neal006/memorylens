@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from memory.base import BaseMemory
 from simulator.facts import Fact
 
@@ -89,3 +89,40 @@ def precision_at_k(memory: BaseMemory, facts: List[Fact], current_turn: int, k: 
         if any(fv in msg.get("content", "").lower() for fv in all_fact_values)
     )
     return relevant / len(context)
+
+
+def cascade_efficiency(
+    cascading_memory: BaseMemory,
+    naive_memory: BaseMemory,
+    facts: List[Fact],
+    current_turn: int,
+) -> float:
+    """
+    Cascade Efficiency — composite score showing how much better cascading is
+    vs naive on the recall-per-token frontier.
+
+    Score = (cascading_recall / cascading_tokens) / (naive_recall / naive_tokens)
+
+    > 1.0 means cascading delivers more recall per token than naive.
+    = 1.0 means equivalent.
+    < 1.0 means naive is more efficient (shouldn't happen at scale).
+    """
+    active = [f for f in facts if f.injected_at <= current_turn]
+    if not active:
+        return 1.0
+
+    def _stats(mem: BaseMemory):
+        results = [recall_at_t(mem, f, current_turn) for f in active]
+        r = sum(x["recalled"] for x in results) / len(results)
+        t = sum(x["tokens"] for x in results) / len(results)
+        return r, max(t, 1)
+
+    c_recall, c_tokens = _stats(cascading_memory)
+    n_recall, n_tokens = _stats(naive_memory)
+
+    cascading_rpt = c_recall / c_tokens
+    naive_rpt = n_recall / n_tokens
+
+    if naive_rpt == 0:
+        return float("inf")
+    return round(cascading_rpt / naive_rpt, 4)

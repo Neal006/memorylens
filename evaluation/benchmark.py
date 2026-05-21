@@ -8,7 +8,8 @@ from memory.rag import RAGMemory
 from memory.cascading import CascadingTemporalMemory
 from memory.base import BaseMemory
 from evaluation.metrics import (
-    recall_at_t, temporal_drift_score, memory_noise_ratio, precision_at_k
+    recall_at_t, temporal_drift_score, memory_noise_ratio, precision_at_k,
+    cascade_efficiency,
 )
 
 OFF_TOPIC_QUERY = "What is the best sorting algorithm for large datasets?"
@@ -22,6 +23,7 @@ class CheckpointResult:
     drift: float
     noise: float
     tokens: int
+    cascade_eff: float = 1.0
 
 
 @dataclass
@@ -61,6 +63,10 @@ def run_benchmark(
     checkpoint_set = set(eval_checkpoints)
     results: Dict[str, BackendResult] = {}
 
+    # Always maintain a paired naive + cascading for cascade_efficiency metric
+    _naive_shadow   = _make_memory("naive")
+    _cascade_shadow = _make_memory("cascading")
+
     for backend_name in backends:
         if progress:
             progress(f"▶ Starting backend: {backend_name}")
@@ -71,11 +77,16 @@ def run_benchmark(
 
         for event in events:
             turn = event["turn"]
-            memory.add_message("user", event["content"], turn)
-
-            # Simulate a short assistant acknowledgment so history alternates roles
             ack = "Understood." if event["is_fact"] else "I can help with that."
+            memory.add_message("user", event["content"], turn)
             memory.add_message("assistant", ack, turn)
+            # Feed shadow memories used only for cascade_efficiency
+            if backend_name == "naive":
+                _naive_shadow.add_message("user", event["content"], turn)
+                _naive_shadow.add_message("assistant", ack, turn)
+            elif backend_name == "cascading":
+                _cascade_shadow.add_message("user", event["content"], turn)
+                _cascade_shadow.add_message("assistant", ack, turn)
 
             if event["is_fact"]:
                 key = event["fact_key"]
@@ -114,6 +125,11 @@ def run_benchmark(
                 # --- Noise Ratio ---
                 noise = memory_noise_ratio(memory, OFF_TOPIC_QUERY, known_values, turn)
 
+                # --- Cascade Efficiency (only meaningful for cascading backend) ---
+                eff = 1.0
+                if backend_name == "cascading" and "naive" in backends:
+                    eff = cascade_efficiency(_cascade_shadow, _naive_shadow, active_facts, turn)
+
                 result.checkpoints.append(CheckpointResult(
                     turn=cp,
                     recall=round(avg_recall, 4),
@@ -121,6 +137,7 @@ def run_benchmark(
                     drift=round(avg_drift, 4),
                     noise=round(noise, 4),
                     tokens=int(avg_tokens),
+                    cascade_eff=round(eff, 4),
                 ))
 
         results[backend_name] = result
@@ -138,11 +155,12 @@ def results_to_display_dict(results: Dict[str, BackendResult]) -> Dict:
     for name, result in results.items():
         cp_map = {cp.turn: cp for cp in result.checkpoints}
         display[name] = {
-            "recall":    [cp_map[t].recall    for t in checkpoints if t in cp_map],
-            "precision": [cp_map[t].precision for t in checkpoints if t in cp_map],
-            "drift":     [cp_map[t].drift     for t in checkpoints if t in cp_map],
-            "noise":     [cp_map[t].noise     for t in checkpoints if t in cp_map],
-            "tokens":    [cp_map[t].tokens    for t in checkpoints if t in cp_map],
+            "recall":       [cp_map[t].recall      for t in checkpoints if t in cp_map],
+            "precision":    [cp_map[t].precision   for t in checkpoints if t in cp_map],
+            "drift":        [cp_map[t].drift       for t in checkpoints if t in cp_map],
+            "noise":        [cp_map[t].noise       for t in checkpoints if t in cp_map],
+            "tokens":       [cp_map[t].tokens      for t in checkpoints if t in cp_map],
+            "cascade_eff":  [cp_map[t].cascade_eff for t in checkpoints if t in cp_map],
         }
 
     return display

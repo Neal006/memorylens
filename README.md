@@ -92,17 +92,39 @@ Age-decay formula: `effective_score = similarity × max(0.2, 1 - age/total × 0.
 
 ---
 
-## Benchmark Results (Demo)
+## Benchmark Results (Empirical — 100 turns, 8 tracked facts)
 
-| Backend | T=10 | T=25 | T=50 | T=75 | T=100 | Tokens/Query | Monthly Cost* |
-|---------|------|------|------|------|-------|-------------|---------------|
-| Naive | 87.5% | 75.0% | 62.5% | 50.0% | 43.8% | 6,400 | ₹5,31,200 |
-| RAG | 90.0% | 87.5% | 81.3% | 78.8% | 76.3% | 330 | ₹27,390 |
-| **Cascading** | **92.5%** | **91.3%** | **90.0%** | **88.8%** | **87.5%** | **250** | **₹20,750** |
+### Recall@T
 
-\*At 100K queries/month, ₹83/1M tokens
+| Backend | T=10 | T=25 | T=50 | T=75 | T=100 |
+|---------|------|------|------|------|-------|
+| Naive | 100% | 100% | 100% | 100% | 62.5% |
+| RAG | 100% | 100% | 100% | 100% | **100%** |
+| Cascading | 100% | 100% | 100% | 87.5% | 75.0% |
 
-**Result: Cascading Temporal Memory delivers 96% cost reduction vs Naive while achieving 43.7pp higher recall at T=100.**
+### Tokens per Query
+
+| Backend | T=10 | T=25 | T=50 | T=75 | T=100 |
+|---------|------|------|------|------|-------|
+| Naive | 102 | 290 | 613 | 933 | 1,189 |
+| RAG | **53** | **58** | **66** | **61** | **58** |
+| Cascading | 88 | 148 | 267 | 269 | 261 |
+
+### Cascade Efficiency (recall/token ratio vs Naive)
+
+| T=10 | T=25 | T=50 | T=75 | T=100 |
+|------|------|------|------|-------|
+| 1.16× | 1.96× | 2.30× | 3.03× | **5.45×** |
+
+### Business Impact @ 100K queries/month
+
+| Backend | Tokens/Query | Monthly Cost (INR) | Recall@100 |
+|---------|-------------|---------------------|-----------|
+| Naive | 1,189 | INR 9,869 | 62.5% |
+| RAG | 58 | INR 481 | 100.0% |
+| **Cascading** | 261 | **INR 2,166** | 75.0% |
+
+**Key finding:** Cascading Temporal Memory is 78% cheaper than Naive while maintaining 75% recall — and delivers 5.45× more recall per token at T=100. RAG achieves highest recall at lowest cost but lacks the tiered narrative context that cascading provides through cold summaries.
 
 ---
 

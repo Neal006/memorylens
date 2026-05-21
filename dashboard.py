@@ -142,8 +142,30 @@ def render_results(data: Dict, is_demo: bool = False) -> None:
         )
         st.plotly_chart(fig3, use_container_width=True)
 
+    # ── Cascade Efficiency ─────────────────────────────────────────────────
+    if "cascading" in present and any(v != 1.0 for v in data["cascading"].get("cascade_eff", [1.0])):
+        st.subheader("Cascade Efficiency (recall-per-token vs Naive baseline)")
+        eff_vals = data["cascading"].get("cascade_eff", [1.0] * len(cps))
+        fig_eff = go.Figure()
+        fig_eff.add_trace(go.Scatter(
+            x=cps, y=eff_vals,
+            name="Cascade Efficiency",
+            mode="lines+markers+text",
+            text=[f"{v:.2f}x" for v in eff_vals],
+            textposition="top center",
+            line=dict(color=COLORS["cascading"], width=3),
+            marker=dict(size=10),
+        ))
+        fig_eff.add_hline(y=1.0, line_dash="dot", line_color="#cdd6f4", annotation_text="Naive baseline")
+        fig_eff.update_layout(
+            xaxis_title="Turn", yaxis_title="Cascade Efficiency (x)",
+            template="plotly_dark", height=300,
+        )
+        st.plotly_chart(fig_eff, use_container_width=True)
+        st.caption("Efficiency > 1.0 means cascading delivers more recall per token spent than the naive baseline.")
+
     # ── Token cost table ────────────────────────────────────────────────────
-    st.subheader("Business Impact — Monthly Token Cost (₹)")
+    st.subheader("Business Impact — Monthly Token Cost")
     rows = []
     for name in present:
         final_tok = data[name]["tokens"][-1]

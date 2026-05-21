@@ -32,7 +32,13 @@ class BackendResult:
 
 
 def _make_memory(name: str) -> BaseMemory:
-    return {"naive": NaiveMemory, "rag": RAGMemory, "cascading": CascadingTemporalMemory}[name]()
+    if name == "naive":
+        # Limit to ~1,500 tokens to simulate a realistic context window budget,
+        # forcing oldest messages to be evicted as conversation grows.
+        return NaiveMemory(max_context_tokens=1200)
+    if name == "rag":
+        return RAGMemory()
+    return CascadingTemporalMemory()
 
 
 def run_benchmark(

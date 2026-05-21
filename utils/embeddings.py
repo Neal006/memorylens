@@ -1,5 +1,10 @@
-from typing import List, Optional
+import os
+from typing import List
 import numpy as np
+
+# Prevent transformers from importing TensorFlow (avoids protobuf version conflicts)
+os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
+os.environ.setdefault("USE_TF", "0")
 
 _model = None
 

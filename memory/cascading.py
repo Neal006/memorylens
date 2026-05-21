@@ -77,9 +77,9 @@ class CascadingTemporalMemory(BaseMemory):
     def get_context(self, query: str, current_turn: int) -> List[Dict]:
         context: List[Dict] = []
 
-        # Cold tier: inject as a system-level summary
+        # Cold tier: inject ALL summaries as a system-level context block
         if self.cold:
-            combined = " | ".join(self.cold[-2:])
+            combined = " | ".join(self.cold)
             context.append({"role": "system", "content": f"[Historical context] {combined}"})
 
         # Warm tier: semantic retrieval with age-based decay

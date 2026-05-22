@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- `memory/summary.py`: SummaryMemory backend — rolling compression memory with dual-mode support:
+  - **LLM mode** (when `GROQ_API_KEY` is set): Groq-powered abstractive summarisation
+  - **Extractive fallback** (zero API cost): regex-based fact-pattern extraction
+- 6 new tests in `tests/test_pipeline.py` covering SummaryMemory: recall, compression, context structure, reset, token cost, and benchmark registration
+- `SummaryMemory` registered as `"summary"` in `evaluation/benchmark.py`
+
+### Results (extractive mode, 100 turns)
+| Backend | Recall@100 | Tokens/Query |
+|---------|:----------:|:------------:|
+| SummaryMemory | 100% | 318 |
+
+---
+
 ## [0.2.0] — 2026-05-22
 
 ### Added

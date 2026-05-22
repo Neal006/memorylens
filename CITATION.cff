@@ -1,0 +1,50 @@
+cff-version: 1.2.0
+message: "If you use MemoryLens in your research, please cite it as below."
+type: software
+title: "MemoryLens: A Temporal Decay Benchmark for LLM Memory Architectures"
+abstract: >
+  MemoryLens is an open-source evaluation framework for measuring LLM memory decay
+  — how AI memory systems forget personal facts across long conversations. It implements
+  five memory architectures (Naive, Ideal RAG, Chunked RAG, Cascading Temporal, SummaryMemory),
+  five evaluation metrics (Recall@T, Precision@K, Temporal Drift, Memory Noise Ratio,
+  Cascade Efficiency), Ebbinghaus-grounded temporal decay with ablation, multi-seed
+  statistical validation across five diverse personas, and a dual evaluation pipeline
+  (content-based + LLM answer+judge) supporting five provider backends.
+authors:
+  - family-names: Srivastava
+    given-names: Neal
+    alias: Neal006
+    orcid: ""
+repository-code: "https://github.com/Neal006/memorylens"
+url: "https://github.com/Neal006/memorylens"
+license: MIT
+version: 0.3.0
+date-released: "2026-05-22"
+keywords:
+  - LLM memory
+  - memory decay
+  - LLM evaluation
+  - RAG evaluation
+  - temporal decay
+  - Ebbinghaus forgetting curve
+  - conversational AI
+  - memory benchmark
+  - long-term memory
+  - retrieval-augmented generation
+  - cascading memory
+  - LLM benchmark
+references:
+  - type: article
+    title: "RAGAS: Automated Evaluation of Retrieval Augmented Generation"
+    authors:
+      - family-names: Es
+        given-names: Shahul
+    year: 2023
+    url: "https://arxiv.org/abs/2309.15217"
+  - type: article
+    title: "MemGPT: Towards LLMs as Operating Systems"
+    authors:
+      - family-names: Packer
+        given-names: Charles
+    year: 2023
+    url: "https://arxiv.org/abs/2310.08560"

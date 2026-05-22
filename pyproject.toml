@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "memorylens"
+version = "0.3.0"
+description = "The open-source benchmark for LLM memory decay — measure how AI memory architectures forget across long conversations"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "Neal Srivastava", email = "builtbyneal@gmail.com" },
+]
+keywords = [
+    "llm",
+    "memory",
+    "memory decay",
+    "llm evaluation",
+    "rag evaluation",
+    "benchmark",
+    "temporal decay",
+    "ebbinghaus",
+    "conversation memory",
+    "long-term memory",
+    "chatbot memory",
+    "llm benchmark",
+    "memory evaluation",
+    "retrieval augmented generation",
+    "cascading memory",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "sentence-transformers>=2.7.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "streamlit>=1.35.0",
+    "plotly>=5.18.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+groq = ["groq>=0.9.0"]
+openai = ["openai>=1.0.0"]
+anthropic = ["anthropic>=0.25.0"]
+all-providers = ["groq>=0.9.0", "openai>=1.0.0", "anthropic>=0.25.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+
+[project.scripts]
+memorylens = "main:main"
+
+[project.urls]
+Homepage = "https://github.com/Neal006/memorylens"
+Repository = "https://github.com/Neal006/memorylens"
+"Bug Tracker" = "https://github.com/Neal006/memorylens/issues"
+Documentation = "https://github.com/Neal006/memorylens#readme"
+Paper = "https://github.com/Neal006/memorylens/blob/main/paper/memorylens_paper.md"
+
+[tool.setuptools.packages.find]
+include = ["memory*", "evaluation*", "simulator*", "utils*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json"]

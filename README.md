@@ -13,7 +13,7 @@
 [![Stars](https://img.shields.io/github/stars/Neal006/memorylens?style=social)](https://github.com/Neal006/memorylens/stargazers)
 [![Forks](https://img.shields.io/github/forks/Neal006/memorylens?style=social)](https://github.com/Neal006/memorylens/network/members)
 
-[**Quick Start**](#quick-start) · [**Results**](#benchmark-results) · [**How It Works**](#how-it-works) · [**vs Other Tools**](#how-memorylens-compares) · [**Contributing**](#contributing) · [**Paper**](paper/memorylens_paper.md)
+[**Quick Start**](#quick-start) · [**Results**](#benchmark-results) · [**How It Works**](#how-it-works) · [**vs Other Tools**](#how-memorylens-compares)
 
 </div>
 
@@ -45,7 +45,7 @@ Run `python main.py` and get statistically valid results like these — **no API
 | **Cascading Temporal** (Ebbinghaus decay) | **87.5 ± 0.0%** | **218** | **5.67×** |
 | SummaryMemory (rolling compression) | 100.0 ± 0.0% | 318 | — |
 
-> **Chunked RAG vs Ideal RAG** shows the gap between a theoretical upper bound and a production-realistic retrieval system. The 15pp difference is what chunking + index eviction costs you. The **Cascading Temporal** backend delivers **5.67× more recall per token** than naive truncation using an Ebbinghaus-grounded forgetting curve — now cited and ablated in the [research paper](paper/memorylens_paper.md).
+> **Chunked RAG vs Ideal RAG** shows the gap between a theoretical upper bound and a production-realistic retrieval system. The 15pp difference is what chunking + index eviction costs you. The **Cascading Temporal** backend delivers **5.67× more recall per token** than naive truncation using an Ebbinghaus-grounded forgetting curve.
 
 ---
 

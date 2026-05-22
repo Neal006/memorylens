@@ -1,0 +1,36 @@
+# Changelog
+
+All notable changes to MemoryLens are documented here.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+---
+
+## [0.2.0] — 2026-05-22
+
+### Added
+- `cascade_efficiency` metric: recall-per-token ratio of Cascading vs Naive (5.45× at T=100)
+- `quick_demo.py`: full benchmark run requiring zero API keys — uses local embeddings only
+- `evaluation/llm_judge.py`: optional Groq-powered LLM-as-judge for answer quality scoring
+- `evaluation/logger.py`: persist every benchmark run to `experiment_logs/` as JSON + CSV
+- GitHub Actions CI workflow — tests on Python 3.10 and 3.11
+
+### Fixed
+- Cascading cold-tier recall: now surfaces **all** cold summaries instead of only the last two
+- CI `IndentationError`: replaced inline `python -c` with proper test scripts
+
+### Changed
+- Naive memory context budget tightened to 1,200 tokens to expose realistic decay
+- Demo results updated with empirically validated numbers from live benchmark runs
+
+---
+
+## [0.1.0] — 2026-05-21
+
+### Added
+- Initial framework with three memory backends: Naive, RAG, Cascading Temporal
+- Five evaluation metrics: Recall@T, Precision@K, Temporal Drift, Memory Noise Ratio, Cascade Efficiency
+- Streamlit dashboard with demo data and live benchmark mode
+- CLI runner (`main.py`) with JSON and LaTeX export
+- Synthetic conversation simulator with 8 tracked facts and update events
+- `sentence-transformers` (all-MiniLM-L6-v2) for local, free embeddings
+- Groq integration (llama-3.1-8b-instant) for LLM evaluation mode

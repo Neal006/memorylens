@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Propose a new feature, metric, or memory backend
+about: Propose a new feature, LLM memory backend, evaluation metric, or benchmark scenario for MemoryLens
 title: "[FEAT] "
 labels: enhancement
 assignees: ''
@@ -8,24 +8,36 @@ assignees: ''
 
 ## What problem does this solve?
 
-<!-- Describe the gap. What can't you do with MemoryLens right now? -->
+<!-- Describe the gap in LLM memory evaluation. What can't MemoryLens measure right now?
+     Examples:
+     - "There's no way to benchmark memory across sessions (persistent memory)"
+     - "Chunked RAG doesn't model importance-weighted eviction"
+     - "The EdTech scenario is missing — I want to benchmark student/teacher memory decay"
+-->
 
 ## Proposed solution
 
-<!-- How would you implement this? New backend? New metric? Dashboard change? -->
+<!-- How would you implement this? New memory backend? New metric? New benchmark scenario? Dashboard change? -->
 
 ## Which layer does this touch?
 
-- [ ] `simulator/` — conversation generation or fact injection
-- [ ] `memory/` — new or improved memory backend
-- [ ] `evaluation/` — new metric or benchmark change
-- [ ] `dashboard.py` — visualisation
+- [ ] `simulator/` — conversation generation, fact injection, or new domain scenario
+- [ ] `memory/` — new or improved memory backend (LLM memory architecture)
+- [ ] `evaluation/` — new metric or multi-seed benchmark change
+- [ ] `utils/providers.py` — new LLM provider
+- [ ] `dashboard.py` — visualisation (Streamlit + Plotly)
 - [ ] `main.py` / CLI
-- [ ] Documentation
+- [ ] Documentation / research paper
+
+## Expected impact on recall or efficiency
+
+<!-- If this is a new memory backend, what recall@T behavior do you expect?
+     If this is a new metric, what does it capture that Recall@T doesn't?
+-->
 
 ## Alternatives considered
 
-<!-- Have you tried working around this? What else could solve the problem? -->
+<!-- Have you tried working around this? Which existing backends or metrics come closest? -->
 
 ## Are you willing to implement this?
 
@@ -35,4 +47,4 @@ assignees: ''
 
 ## Additional context
 
-<!-- Links, papers, related work, mockups, etc. -->
+<!-- Links to papers (MemGPT, A-MEM, RAGAS, etc.), related LLM memory work, mockups, etc. -->

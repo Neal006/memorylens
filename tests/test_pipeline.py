@@ -179,6 +179,114 @@ def test_summary_benchmark_registration():
     print(f"PASS: summary registered in benchmark runner ({mem!r})")
 
 
+# ── Decay function tests ────────────────────────────────────────────────────
+
+def test_decay_functions_range():
+    """All decay functions must return values in [0, 1] for all valid inputs."""
+    from memory.decay import _REGISTRY
+    for name, fn in _REGISTRY.items():
+        for age in [0, 1, 5, 10, 50, 99, 100]:
+            v = fn(age, 100)
+            assert 0.0 <= v <= 1.0, f"{name}({age}, 100) = {v} out of range"
+    print("PASS: all decay functions in [0,1] range")
+
+
+def test_ebbinghaus_is_monotone_decreasing():
+    """Ebbinghaus decay must be monotonically non-increasing with age."""
+    from memory.decay import decay_ebbinghaus
+    prev = 1.0
+    for age in range(0, 101):
+        v = decay_ebbinghaus(age, 100)
+        assert v <= prev + 1e-9, f"Ebbinghaus not monotone: age={age}, v={v}, prev={prev}"
+        prev = v
+    print("PASS: Ebbinghaus decay is monotone decreasing")
+
+
+def test_cascading_uses_pluggable_decay():
+    """CascadingTemporalMemory should accept and store the decay name."""
+    from memory.cascading import CascadingTemporalMemory
+    for name in ["default", "linear", "exponential", "ebbinghaus"]:
+        mem = CascadingTemporalMemory(decay=name)
+        assert mem.decay_name == name, f"Expected decay_name={name}, got {mem.decay_name}"
+    print("PASS: CascadingTemporalMemory accepts all decay variants")
+
+
+# ── ChunkedRAGMemory tests ──────────────────────────────────────────────────
+
+def test_chunked_rag_recall_early():
+    """ChunkedRAGMemory should recall facts with >= 75% accuracy at T=15."""
+    from memory.rag_chunked import ChunkedRAGMemory
+    mem = ChunkedRAGMemory()
+    _populate(mem, BENCHMARK_FACTS, 15)
+    active = [f for f in BENCHMARK_FACTS if f.injected_at < 15]
+    results = [recall_at_t(mem, f, 14) for f in active]
+    rate = sum(r["recalled"] for r in results) / len(results)
+    assert rate >= 0.75, f"Expected >=75% recall at T=15 for chunked RAG, got {rate:.0%}"
+    print(f"PASS: ChunkedRAGMemory recall early ({rate:.0%})")
+
+
+def test_chunked_rag_bounded_index():
+    """ChunkedRAGMemory must not exceed max_chunks capacity."""
+    from memory.rag_chunked import ChunkedRAGMemory
+    mem = ChunkedRAGMemory(max_chunks=50)
+    _populate(mem, BENCHMARK_FACTS, 100)
+    assert len(mem.chunks) <= 50, (
+        f"Chunk index {len(mem.chunks)} exceeds max_chunks=50"
+    )
+    assert len(mem.embeddings) == len(mem.chunks), (
+        "Embedding count mismatch with chunk count"
+    )
+    print(f"PASS: ChunkedRAGMemory bounded index (chunks={len(mem.chunks)})")
+
+
+def test_chunked_rag_tokens_less_than_naive():
+    """ChunkedRAGMemory should use fewer tokens than naive at T=100."""
+    from memory.rag_chunked import ChunkedRAGMemory
+    naive = NaiveMemory(max_context_tokens=1200)
+    chunked = ChunkedRAGMemory()
+    _populate(naive, BENCHMARK_FACTS, 100)
+    _populate(chunked, BENCHMARK_FACTS, 100)
+    name_fact = BENCHMARK_FACTS[0]
+    naive_t = naive.token_count(name_fact.query_text(), 99)
+    chunked_t = chunked.token_count(name_fact.query_text(), 99)
+    assert chunked_t < naive_t, (
+        f"ChunkedRAG ({chunked_t}) should be cheaper than naive ({naive_t})"
+    )
+    print(f"PASS: ChunkedRAG token cost < naive ({chunked_t} vs {naive_t})")
+
+
+def test_chunked_rag_benchmark_registration():
+    """'rag_chunked' backend must be resolvable from the benchmark runner."""
+    from evaluation.benchmark import _make_memory
+    mem = _make_memory("rag_chunked")
+    assert mem.name == "rag_chunked"
+    print(f"PASS: rag_chunked registered in benchmark runner ({mem!r})")
+
+
+# ── Stats / multi-seed tests ────────────────────────────────────────────────
+
+def test_stats_aggregate_metric():
+    """aggregate_metric must return correct mean and std."""
+    from evaluation.stats import aggregate_metric
+    result = aggregate_metric([0.8, 0.9, 0.7, 0.85, 0.75])
+    assert abs(result["mean"] - 0.8) < 0.01, f"Mean wrong: {result['mean']}"
+    assert result["std"] > 0, "Std should be > 0 for varied values"
+    assert result["ci95_lo"] <= result["mean"] <= result["ci95_hi"]
+    print(f"PASS: aggregate_metric (mean={result['mean']:.3f} +/- {result['std']:.3f})")
+
+
+def test_persona_pool_structure():
+    """Each persona must have 8 facts with the same keys as BENCHMARK_FACTS."""
+    from simulator.personas import PERSONA_POOL
+    expected_keys = {f.key for f in BENCHMARK_FACTS}
+    for i, persona in enumerate(PERSONA_POOL):
+        persona_keys = {f.key for f in persona}
+        assert persona_keys == expected_keys, (
+            f"Persona {i} has different fact keys: {persona_keys}"
+        )
+    print(f"PASS: persona pool structure ({len(PERSONA_POOL)} personas, {len(expected_keys)} keys each)")
+
+
 if __name__ == "__main__":
     tests = [
         test_conversation_generator,
@@ -196,6 +304,18 @@ if __name__ == "__main__":
         test_summary_reset_clears_state,
         test_summary_token_cost_bounded,
         test_summary_benchmark_registration,
+        # Decay functions
+        test_decay_functions_range,
+        test_ebbinghaus_is_monotone_decreasing,
+        test_cascading_uses_pluggable_decay,
+        # ChunkedRAG
+        test_chunked_rag_recall_early,
+        test_chunked_rag_bounded_index,
+        test_chunked_rag_tokens_less_than_naive,
+        test_chunked_rag_benchmark_registration,
+        # Stats / multi-seed
+        test_stats_aggregate_metric,
+        test_persona_pool_structure,
     ]
     failed = 0
     for t in tests:

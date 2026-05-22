@@ -1,10 +1,22 @@
 """
-MemoryLens CLI — run the benchmark from the terminal.
+MemoryLens CLI
 
-Usage:
-    python main.py                            # default settings
-    python main.py --turns 50 --backends rag cascading
-    python main.py --output my_results.json
+Usage (content-only, no API key needed):
+    python main.py
+
+Usage (full LLM evaluation, auto-detects available provider):
+    python main.py --llm
+
+Usage (force a specific provider):
+    python main.py --llm --provider openai
+    python main.py --llm --provider anthropic
+    python main.py --llm --provider groq
+    python main.py --llm --provider openrouter
+    python main.py --llm --provider ollama
+
+Other options:
+    python main.py --turns 50 --backends naive rag --log
+    python main.py --list-providers
 """
 
 import os
@@ -18,66 +30,142 @@ load_dotenv()
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="MemoryLens: LLM Memory Decay Evaluation Framework"
+        description="MemoryLens: End-to-end LLM Memory Decay Benchmark",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--turns",       type=int,   default=100)
-    parser.add_argument("--checkpoints", nargs="+",  type=int, default=[10, 25, 50, 75, 100])
-    parser.add_argument("--backends",    nargs="+",  default=["naive", "rag", "cascading"])
-    parser.add_argument("--output",      type=str,   default="results.json")
-    parser.add_argument("--log",         action="store_true", help="Save run to experiment_logs/")
+    parser.add_argument("--turns",       type=int,  default=100)
+    parser.add_argument("--checkpoints", nargs="+", type=int,
+                        default=[10, 25, 50, 75, 100])
+    parser.add_argument("--backends",    nargs="+",
+                        default=["naive", "rag", "cascading"],
+                        help="naive | rag | cascading | summary")
+    parser.add_argument("--output",      type=str,  default="results.json")
+    parser.add_argument("--log",         action="store_true",
+                        help="Save run to experiment_logs/")
+    parser.add_argument("--llm",         action="store_true",
+                        help="Run real LLM evaluation pass (needs an API key or Ollama)")
+    parser.add_argument("--provider",    type=str,  default=None,
+                        help="Force a provider: groq | openai | anthropic | openrouter | ollama")
+    parser.add_argument("--list-providers", action="store_true",
+                        help="Print available providers and exit")
     args = parser.parse_args()
 
-    if not os.getenv("GROQ_API_KEY"):
-        print("ERROR: GROQ_API_KEY not set. Copy .env.example to .env and add your key.")
-        sys.exit(1)
+    # ── List providers ────────────────────────────────────────────────────────
+    if args.list_providers:
+        from utils.providers import list_available, _REGISTRY
+        available = list_available()
+        print("\nProvider status:")
+        for name in _REGISTRY:
+            status = "available" if name in available else "not available"
+            print(f"  {name:<15} {status}")
+        print()
+        sys.exit(0)
+
+    # ── Resolve LLM provider ─────────────────────────────────────────────────
+    provider = None
+    if args.llm:
+        from utils.providers import get_provider
+        try:
+            provider = get_provider(args.provider)
+        except (ValueError, RuntimeError) as e:
+            print(f"ERROR: {e}")
+            sys.exit(1)
+
+        if provider is None:
+            print(
+                "ERROR: --llm requested but no provider is available.\n"
+                "  Set one of: GROQ_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, "
+                "OPENROUTER_API_KEY\n"
+                "  or start Ollama locally.\n"
+                "  Run --list-providers to see status."
+            )
+            sys.exit(1)
+
+    # ── Banner ───────────────────────────────────────────────────────────────
+    print("=" * 60)
+    print("  MemoryLens — LLM Memory Decay Benchmark")
+    print("=" * 60)
+    print(f"  Turns       : {args.turns}")
+    print(f"  Checkpoints : {sorted(args.checkpoints)}")
+    print(f"  Backends    : {args.backends}")
+    print(f"  LLM eval    : {'ON  (' + provider.name + ')' if provider else 'OFF (content-only)'}")
+    print("=" * 60)
 
     from evaluation.benchmark import run_benchmark, results_to_display_dict
-
-    print("=" * 55)
-    print("  MemoryLens — LLM Memory Decay Benchmark")
-    print("=" * 55)
-    print(f"  Turns      : {args.turns}")
-    print(f"  Checkpoints: {args.checkpoints}")
-    print(f"  Backends   : {args.backends}")
-    print("=" * 55)
 
     raw = run_benchmark(
         total_turns=args.turns,
         eval_checkpoints=sorted(args.checkpoints),
         backends=args.backends,
+        provider=provider,
         progress=print,
     )
 
     display = results_to_display_dict(raw)
     checkpoints = display["checkpoints"]
 
-    print("\n" + "=" * 55)
-    print("  RESULTS — Recall@T")
-    print("  {:20s}  {}".format("Backend", "  ".join(f"T={c:3d}" for c in checkpoints)))
-    print("-" * 55)
+    # ── Results table ─────────────────────────────────────────────────────────
+    col = "  ".join(f"T={c:3d}" for c in checkpoints)
+    sep = "-" * 60
+
+    print(f"\n{'CONTENT Recall@T':}")
+    print(f"  {'Backend':<14}  {col}")
+    print(sep)
     for name in args.backends:
         if name not in display:
             continue
         vals = "  ".join(f"{v*100:5.1f}%" for v in display[name]["recall"])
-        print(f"  {name:20s}  {vals}")
+        print(f"  {name:<14}  {vals}")
 
-    print("\n  RESULTS — Avg Tokens/Query")
-    print("  {:20s}  {}".format("Backend", "  ".join(f"T={c:3d}" for c in checkpoints)))
-    print("-" * 55)
+    if display.get("has_llm_eval"):
+        print(f"\n{'LLM Recall@T (ground truth)':}")
+        print(f"  {'Backend':<14}  {col}")
+        print(sep)
+        for name in args.backends:
+            if name not in display:
+                continue
+            llm_vals = display[name].get("llm_recall", [])
+            vals = "  ".join(
+                f"{v*100:5.1f}%" if v is not None else "  N/A "
+                for v in llm_vals
+            )
+            print(f"  {name:<14}  {vals}")
+
+        print(f"\n  Gap = Content Recall - LLM Recall")
+        print(f"  {'Backend':<14}  {col}")
+        print(sep)
+        for name in args.backends:
+            if name not in display:
+                continue
+            content = display[name]["recall"]
+            llm     = display[name].get("llm_recall", [None]*len(content))
+            vals = "  ".join(
+                f"{(c - l)*100:+5.1f}%" if l is not None else "  N/A "
+                for c, l in zip(content, llm)
+            )
+            print(f"  {name:<14}  {vals}")
+
+    print(f"\n  Tokens/Query @ T={checkpoints[-1]}")
+    print(sep)
     for name in args.backends:
         if name not in display:
             continue
-        vals = "  ".join(f"{v:6d}" for v in display[name]["tokens"])
-        print(f"  {name:20s}  {vals}")
+        tok = display[name]["tokens"][-1]
+        print(f"  {name:<14}  {tok:,}")
 
+    # ── Save ─────────────────────────────────────────────────────────────────
     with open(args.output, "w") as fh:
         json.dump(display, fh, indent=2)
-    print(f"\nResults saved → {args.output}")
+    print(f"\nResults saved -> {args.output}")
 
     if args.log:
         from evaluation.logger import log_run
-        path = log_run(display, {"total_turns": args.turns, "backends": args.backends})
-        print(f"Experiment logged → {path}")
+        path = log_run(display, {
+            "total_turns": args.turns,
+            "backends":    args.backends,
+            "provider":    provider.name if provider else None,
+        })
+        print(f"Experiment logged -> {path}")
 
     print("Visualise: streamlit run dashboard.py")
 

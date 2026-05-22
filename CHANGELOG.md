@@ -7,7 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Added
+### Added — Multi-Provider Real LLM Evaluation (`feat/multi-provider-llm-eval`)
+- `utils/providers.py` — unified LLM abstraction layer supporting **5 providers**:
+  - **Groq** (`GROQ_API_KEY`) — free tier, llama-3.1-8b-instant
+  - **OpenAI** (`OPENAI_API_KEY`) — gpt-4o-mini
+  - **Anthropic** (`ANTHROPIC_API_KEY`) — claude-haiku-4-5
+  - **OpenRouter** (`OPENROUTER_API_KEY`) — 200+ models via one key
+  - **Ollama** (local, no key) — any locally running model
+  - Auto-detection priority: Groq → OpenAI → Anthropic → OpenRouter → Ollama
+- **Two-stage LLM evaluation pipeline** in `evaluation/metrics.py`:
+  - `llm_recall_at_t()` — LLM answers the query; a judge LLM call verifies correctness
+  - `llm_temporal_drift()` — checks if LLM returns old vs new value after a fact update
+- **CLI flags** in `main.py`:
+  - `--llm` — enable real LLM evaluation pass
+  - `--provider <name>` — force a specific provider
+  - `--list-providers` — print availability of all providers and exit
+- **Three-table CLI output**: Content Recall, LLM Recall, and Gap (Content − LLM)
+- **Dashboard updates**:
+  - Provider selector in sidebar (auto-detects available providers)
+  - Tabbed recall chart: Content Recall / LLM Recall / Gap
+  - KPI cards show LLM Recall with gap delta when available
+  - `summary` backend added to backend multiselect
+- Updated `.env.example` with all five provider keys and inline documentation
+
+### Added — SummaryMemory Backend
 - `memory/summary.py`: SummaryMemory backend — rolling compression memory with dual-mode support:
   - **LLM mode** (when `GROQ_API_KEY` is set): Groq-powered abstractive summarisation
   - **Extractive fallback** (zero API cost): regex-based fact-pattern extraction

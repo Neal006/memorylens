@@ -11,6 +11,7 @@ from simulator.conversation import generate_conversation
 from memory.naive import NaiveMemory
 from memory.rag import RAGMemory
 from memory.cascading import CascadingTemporalMemory
+from memory.summary import SummaryMemory
 from evaluation.metrics import (
     recall_at_t, precision_at_k, temporal_drift_score,
     memory_noise_ratio, cascade_efficiency,

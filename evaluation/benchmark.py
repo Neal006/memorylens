@@ -6,6 +6,7 @@ from simulator.conversation import generate_conversation
 from memory.naive import NaiveMemory
 from memory.rag import RAGMemory
 from memory.cascading import CascadingTemporalMemory
+from memory.summary import SummaryMemory
 from memory.base import BaseMemory
 from evaluation.metrics import (
     recall_at_t, temporal_drift_score, memory_noise_ratio, precision_at_k,
@@ -35,12 +36,17 @@ class BackendResult:
 
 def _make_memory(name: str) -> BaseMemory:
     if name == "naive":
-        # Limit to ~1,500 tokens to simulate a realistic context window budget,
+        # Limit to ~1,200 tokens to simulate a realistic context window budget,
         # forcing oldest messages to be evicted as conversation grows.
         return NaiveMemory(max_context_tokens=1200)
     if name == "rag":
         return RAGMemory()
-    return CascadingTemporalMemory()
+    if name == "cascading":
+        return CascadingTemporalMemory()
+    if name == "summary":
+        # use_llm=None → auto-detect from GROQ_API_KEY env var
+        return SummaryMemory(window_size=20, use_llm=None)
+    raise ValueError(f"Unknown backend: '{name}'. Choose from: naive, rag, cascading, summary")
 
 
 def run_benchmark(

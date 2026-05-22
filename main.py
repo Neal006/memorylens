@@ -27,6 +27,10 @@ Decay formula ablation (compare forgetting curve variants):
 Realistic chunked RAG backend:
     python main.py --backends naive rag_chunked cascading
 
+Forgetting-curve analysis (fit Ebbinghaus + exponential to recall@T data):
+    python main.py --fit-curves
+    python main.py --seeds 5 --fit-curves
+
 Other options:
     python main.py --turns 50 --backends naive rag --log
     python main.py --list-providers
@@ -66,6 +70,9 @@ def main() -> None:
     parser.add_argument("--decay",       type=str,  default="ebbinghaus",
                         choices=["ebbinghaus", "exponential", "linear", "default"],
                         help="Temporal decay function for CascadingMemory warm tier")
+    parser.add_argument("--fit-curves",  action="store_true",
+                        help="After benchmarking, fit Ebbinghaus + exponential decay curves "
+                             "to recall@T data and report half-life / stability / R²")
     args = parser.parse_args()
 
     # ── List providers ────────────────────────────────────────────────────────
@@ -161,10 +168,50 @@ def main() -> None:
             })
             print(f"Experiment logged -> {path}")
 
+    # ── Forgetting-curve analysis ─────────────────────────────────────────────
+    if args.fit_curves:
+        from evaluation.stats import fit_forgetting_curve
+        checkpoints = sorted(args.checkpoints)
+        print("\nFORGETTING CURVE FIT  (Ebbinghaus + Exponential)")
+        print("-" * 65)
+        if multi_seed:
+            for name in args.backends:
+                if name not in aggregated:
+                    continue
+                mean_recalls = [stat["mean"] for stat in aggregated[name]["recall"]]
+                fit = fit_forgetting_curve(checkpoints, mean_recalls)
+                _print_curve_fit(name, fit)
+        else:
+            for name in args.backends:
+                if name not in display:
+                    continue
+                fit = fit_forgetting_curve(checkpoints, display[name]["recall"])
+                _print_curve_fit(name, fit)
+
     print("Visualise: streamlit run dashboard.py")
 
 
 # ── Output helpers ────────────────────────────────────────────────────────────
+
+
+def _print_curve_fit(backend: str, fit: dict) -> None:
+    if "error" in fit:
+        print(f"  {backend:<14}  {fit['error']}")
+        return
+    exp = fit["exponential"]
+    ebb = fit["ebbinghaus"]
+    hl_exp = f"{exp['half_life']:.1f} turns" if exp["half_life"] is not None else "N/A"
+    hl_ebb = f"{ebb['half_life']:.1f} turns" if ebb["half_life"] is not None else "N/A"
+    r2_exp = f"{exp['r2']:.3f}"              if exp["r2"]        is not None else "N/A"
+    r2_ebb = f"{ebb['r2']:.3f}"             if ebb["r2"]        is not None else "N/A"
+    stab   = f"{ebb['stability']:.4f}"       if ebb["stability"] is not None else "N/A"
+    k_val  = f"{exp['k']:.6f}"              if exp["k"]         is not None else "N/A"
+    print(f"  {backend}")
+    print(f"    Exponential  k={k_val}  half-life={hl_exp}  R²={r2_exp}")
+    print(f"    Ebbinghaus   S={stab}   half-life={hl_ebb}  R²={r2_ebb}")
+
+
+
 
 def _print_single_seed_results(display: dict, backends: list) -> None:
     checkpoints = display["checkpoints"]

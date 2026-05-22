@@ -1,6 +1,9 @@
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 from memory.base import BaseMemory
 from simulator.facts import Fact
+
+if TYPE_CHECKING:
+    from utils.providers import LLMProvider
 
 
 def recall_at_t(memory: BaseMemory, fact: Fact, current_turn: int) -> Dict:
@@ -126,3 +129,131 @@ def cascade_efficiency(
     if naive_rpt == 0:
         return float("inf")
     return round(cascading_rpt / naive_rpt, 4)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM-based metrics  (require a provider — degrade gracefully without one)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_ANSWER_SYSTEM = (
+    "You are a helpful assistant with access to a conversation history. "
+    "Answer the user's question using ONLY the information in the context. "
+    "Reply with the answer value only — no explanation, no extra words."
+)
+
+_JUDGE_SYSTEM = (
+    "You are a strict fact-checker. Given a question, the correct answer, "
+    "and a model's response, reply with ONLY 'correct' or 'wrong'."
+)
+
+
+def llm_recall_at_t(
+    memory: BaseMemory,
+    fact: Fact,
+    current_turn: int,
+    provider: "LLMProvider",
+) -> Dict:
+    """
+    LLM Recall@T — the model is actually asked the question and its answer
+    is judged for correctness.
+
+    Two-stage pipeline:
+      1. ANSWER  — LLM answers fact.query_text() given memory context
+      2. JUDGE   — a second LLM call checks if the answer is correct
+
+    Returns
+    -------
+    dict with keys:
+      llm_recalled  : bool   — judge says the answer is correct
+      answer        : str    — what the LLM actually said
+      expected      : str    — ground-truth value
+      judge_verdict : str    — 'correct' | 'wrong' | 'error'
+      tokens        : int    — context token estimate
+    """
+    from utils.providers import _clean_messages
+
+    context = memory.get_context(fact.query_text(), current_turn)
+    expected = fact.current_value(current_turn)
+
+    # ── Stage 1: Answer ──────────────────────────────────────────────────────
+    messages = _clean_messages(
+        [{"role": "system", "content": _ANSWER_SYSTEM}]
+        + context
+        + [{"role": "user", "content": fact.query_text() + " Answer with just the value."}]
+    )
+    answer = provider.chat(messages, max_tokens=60, temperature=0.0)
+    tokens = memory.token_count(fact.query_text(), current_turn)
+
+    if answer.startswith("[PROVIDER_ERROR"):
+        return {
+            "llm_recalled": False, "answer": answer,
+            "expected": expected, "judge_verdict": "error", "tokens": tokens,
+        }
+
+    # ── Stage 2: Judge ───────────────────────────────────────────────────────
+    judge_prompt = (
+        f"Question: {fact.query_text()}\n"
+        f"Correct answer: {expected}\n"
+        f"Model response: {answer}\n"
+        f"Is the model response correct? Reply with ONLY 'correct' or 'wrong'."
+    )
+    verdict_raw = provider.chat(
+        [
+            {"role": "system", "content": _JUDGE_SYSTEM},
+            {"role": "user",   "content": judge_prompt},
+        ],
+        max_tokens=10,
+        temperature=0.0,
+    ).lower().strip()
+
+    verdict = "correct" if "correct" in verdict_raw else "wrong"
+
+    return {
+        "llm_recalled":  verdict == "correct",
+        "answer":        answer,
+        "expected":      expected,
+        "judge_verdict": verdict,
+        "tokens":        tokens,
+    }
+
+
+def llm_temporal_drift(
+    memory: BaseMemory,
+    fact: Fact,
+    current_turn: int,
+    provider: "LLMProvider",
+) -> Dict:
+    """
+    LLM Temporal Drift — asks the LLM for the *current* value of an updated
+    fact and checks whether it returns the new or old value.
+
+    Only meaningful after fact.updated_at has passed.
+    """
+    from utils.providers import _clean_messages
+
+    if not fact.updated_at or current_turn < fact.updated_at:
+        return {"llm_drift": 0.0, "applicable": False}
+
+    context = memory.get_context(fact.query_text(), current_turn)
+    new_val  = (fact.updated_value or "").lower()
+    old_val  = fact.value.lower()
+
+    messages = _clean_messages(
+        [{"role": "system", "content": _ANSWER_SYSTEM}]
+        + context
+        + [{"role": "user", "content":
+            f"What is my current {fact.key.replace('_', ' ')}? "
+            "Reply with the current value only."}]
+    )
+    answer = provider.chat(messages, max_tokens=30, temperature=0.0).lower()
+
+    using_old = old_val in answer and new_val not in answer
+    drift = 1.0 if using_old else 0.0
+
+    return {
+        "llm_drift":  drift,
+        "answer":     answer,
+        "expected":   fact.updated_value,
+        "old_value":  fact.value,
+        "applicable": True,
+    }

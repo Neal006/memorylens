@@ -29,26 +29,15 @@ jobs:
           restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
+        run: pip install --upgrade pip && pip install -r requirements.txt
 
-      - name: Run import smoke test
+      - name: Import smoke test
         env:
           TRANSFORMERS_NO_TF: "1"
           USE_TF: "0"
-        run: python -c "
-          from simulator.facts import BENCHMARK_FACTS
-          from simulator.conversation import generate_conversation
-          from memory.naive import NaiveMemory
-          from memory.rag import RAGMemory
-          from memory.cascading import CascadingTemporalMemory
-          from evaluation.metrics import recall_at_t, precision_at_k, temporal_drift_score, memory_noise_ratio
-          from evaluation.benchmark import run_benchmark, results_to_display_dict
-          print('All imports OK')
-          "
+        run: python tests/test_imports.py
 
-      - name: Run pipeline test (no LLM)
+      - name: Pipeline integration tests
         env:
           TRANSFORMERS_NO_TF: "1"
           USE_TF: "0"

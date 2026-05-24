@@ -77,16 +77,19 @@ def run_benchmark(
     provider:         Optional["LLMProvider"]      = None,
     decay:            str                          = "ebbinghaus",
     progress:         Optional[Callable[[str], None]] = None,
+    filler_turns:     Optional[List[str]]          = None,
 ) -> Dict[str, BackendResult]:
     """
     Run the full MemoryLens benchmark.
 
     Parameters
     ----------
-    decay    : temporal decay function for CascadingTemporalMemory
-               'ebbinghaus' (default) | 'exponential' | 'linear' | 'default'
-    provider : LLMProvider | None
-               When supplied, LLM answer+judge pass runs at every checkpoint.
+    decay        : temporal decay function for CascadingTemporalMemory
+                   'ebbinghaus' (default) | 'exponential' | 'linear' | 'default'
+    provider     : LLMProvider | None
+                   When supplied, LLM answer+judge pass runs at every checkpoint.
+    filler_turns : domain-specific filler question list; defaults to the generic
+                   tech-QA set when None.
     """
     if eval_checkpoints is None:
         eval_checkpoints = [10, 25, 50, 75, 100]
@@ -96,7 +99,7 @@ def run_benchmark(
         backends = ["naive", "rag", "cascading"]
 
     total_turns = max(total_turns, max(eval_checkpoints))
-    events = generate_conversation(facts, total_turns)
+    events = generate_conversation(facts, total_turns, filler_turns=filler_turns)
     checkpoint_set = set(eval_checkpoints)
     results: Dict[str, BackendResult] = {}
 
@@ -234,6 +237,8 @@ def run_benchmark_multi_seed(
     provider:         Optional["LLMProvider"]      = None,
     decay:            str                          = "ebbinghaus",
     progress:         Optional[Callable[[str], None]] = None,
+    persona_pool:     Optional[List[List[Fact]]]   = None,
+    filler_turns:     Optional[List[str]]          = None,
 ) -> Dict:
     """
     Run the benchmark across multiple personas and aggregate with mean ± std.
@@ -251,11 +256,12 @@ def run_benchmark_multi_seed(
     if backends is None:
         backends = ["naive", "rag", "cascading"]
 
-    n_seeds = min(n_seeds, len(PERSONA_POOL))
+    pool = persona_pool if persona_pool is not None else PERSONA_POOL
+    n_seeds = min(n_seeds, len(pool))
     all_runs: List[Dict[str, BackendResult]] = []
 
     for seed_idx in range(n_seeds):
-        persona_facts = PERSONA_POOL[seed_idx]
+        persona_facts = pool[seed_idx]
         if progress:
             progress(f"Seed {seed_idx + 1}/{n_seeds} — {persona_facts[0].value} ...")
         run = run_benchmark(
@@ -265,6 +271,7 @@ def run_benchmark_multi_seed(
             backends=backends,
             provider=provider,
             decay=decay,
+            filler_turns=filler_turns,
         )
         all_runs.append(run)
 

@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 from .facts import Fact, BENCHMARK_FACTS
 
 FILLER_TURNS = [
@@ -25,11 +25,24 @@ FILLER_TURNS = [
 ]
 
 
-def generate_conversation(facts: List[Fact], total_turns: int) -> List[Dict]:
+def generate_conversation(
+    facts: List[Fact],
+    total_turns: int,
+    filler_turns: Optional[List[str]] = None,
+) -> List[Dict]:
     """
     Generate a list of conversation events across `total_turns` turns.
     Each event: {turn, role, content, is_fact, fact_key, is_update}
+
+    Parameters
+    ----------
+    filler_turns : optional list of domain-specific filler questions.
+                   Defaults to the generic tech-QA FILLER_TURNS list.
+                   Pass a domain-specific list (e.g. EDTECH_FILLER_TURNS) to
+                   run a scenario benchmark in a different conversational domain.
     """
+    _fillers = filler_turns if filler_turns else FILLER_TURNS
+
     injection_map: Dict[int, Fact] = {f.injected_at: f for f in facts}
     update_map: Dict[int, Fact] = {
         f.updated_at: f for f in facts if f.updated_at is not None
@@ -54,7 +67,7 @@ def generate_conversation(facts: List[Fact], total_turns: int) -> List[Dict]:
                 "is_fact": True, "fact_key": fact.key, "is_update": True,
             })
         else:
-            msg = FILLER_TURNS[filler_idx % len(FILLER_TURNS)]
+            msg = _fillers[filler_idx % len(_fillers)]
             filler_idx += 1
             events.append({
                 "turn": turn, "role": "user",

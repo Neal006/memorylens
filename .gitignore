@@ -19,5 +19,6 @@ env/
 .DS_Store
 Thumbs.db
 results.json
+experiment_logs/memorylens.db
 *.log
 .streamlit/secrets.toml

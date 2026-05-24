@@ -2,7 +2,7 @@
 name: New Memory Backend
 about: Propose or claim a new LLM memory architecture implementation for the MemoryLens benchmark
 title: "[BACKEND] "
-labels: enhancement, new-backend
+labels: "feature, area: memory-backend, status: open-for-contribution, help wanted"
 assignees: ''
 ---
 

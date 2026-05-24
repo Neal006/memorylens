@@ -1,20 +1,63 @@
 # Contributing to MemoryLens
 
-Thank you for contributing to the **open-source benchmark for LLM memory decay**. Every contribution — a bug report, a new memory backend, a documentation fix — makes the benchmark better for the entire AI/ML community.
+MemoryLens is an open benchmark for measuring how AI memory systems forget over long conversations. Every contribution — a new backend, a benchmark scenario, a test, a documentation fix — directly improves the quality of LLM memory research for everyone.
 
 ---
 
 ## Table of Contents
 
-- [Quick orientation](#quick-orientation)
-- [Development setup](#development-setup)
+- [Finding something to work on](#finding-something-to-work-on)
+- [Quick start](#quick-start)
+- [Project layout](#project-layout)
 - [How to add a new memory backend](#how-to-add-a-new-memory-backend)
 - [How to add a new metric](#how-to-add-a-new-metric)
-- [How to add a new persona / scenario](#how-to-add-a-new-persona--scenario)
+- [How to add a new domain scenario](#how-to-add-a-new-domain-scenario)
 - [Running tests](#running-tests)
+- [Commit style](#commit-style)
 - [Submitting a PR](#submitting-a-pr)
-- [Good first issues](#good-first-issues)
-- [Style guide](#style-guide)
+- [Code standards](#code-standards)
+
+---
+
+## Finding something to work on
+
+| I am... | Start here |
+|---------|-----------|
+| Brand new to open source | [`good first issue`](https://github.com/Neal006/memorylens/issues?q=is%3Aopen+label%3A%22good+first+issue%22) — labeled, scoped, with step-by-step hints |
+| Comfortable with Python | [`difficulty: beginner`](https://github.com/Neal006/memorylens/issues?q=is%3Aopen+label%3A%22difficulty%3A+beginner%22) or [`difficulty: intermediate`](https://github.com/Neal006/memorylens/issues?q=is%3Aopen+label%3A%22difficulty%3A+intermediate%22) |
+| Experienced ML engineer | [`difficulty: advanced`](https://github.com/Neal006/memorylens/issues?q=is%3Aopen+label%3A%22difficulty%3A+advanced%22) or [`help wanted`](https://github.com/Neal006/memorylens/issues?q=is%3Aopen+label%3A%22help+wanted%22) |
+| A technical writer | [`area: documentation`](https://github.com/Neal006/memorylens/issues?q=is%3Aopen+label%3A%22area%3A+documentation%22) — Markdown only, no code needed |
+
+**Before starting:** Comment on the issue to let others know you're working on it. This prevents duplicate effort.
+
+---
+
+## Quick start
+
+```bash
+# 1. Fork the repo on GitHub, then clone your fork:
+git clone https://github.com/<your-username>/memorylens
+cd memorylens
+
+# 2. Create a virtual environment (recommended):
+python -m venv .venv
+source .venv/bin/activate        # Linux / macOS
+.venv\Scripts\activate           # Windows
+
+# 3. Install in editable mode with dev dependencies:
+pip install -e ".[dev]"
+
+# 4. Copy the environment file (API key is optional):
+cp .env.example .env
+# Open .env and add your GROQ_API_KEY if you have one.
+# The zero-API-key path works fully without any key.
+
+# 5. Run the full test suite — all tests should pass before you start:
+pytest tests/ -v
+
+# 6. Try the zero-API-key demo to confirm everything works:
+python quick_demo.py
+```
 
 ---
 
@@ -34,31 +77,41 @@ Each layer is independently extensible. You can add a backend without touching t
 **Current metrics:** Recall@T · Precision@K · Temporal Drift · Memory Noise Ratio · Cascade Efficiency  
 **LLM eval providers:** Groq · OpenAI · Anthropic · OpenRouter · Ollama
 
+Set `TRANSFORMERS_NO_TF=1` and `USE_TF=0` if you have TensorFlow installed alongside PyTorch.
+
 ---
 
-## Development setup
+## Project layout
 
-```bash
-# 1. Fork and clone
-git clone https://github.com/YOUR-USERNAME/memorylens.git
-cd memorylens
-
-# 2. Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # Linux/macOS
-.venv\Scripts\activate           # Windows
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Verify everything works (no API key needed)
-python tests/test_pipeline.py
-
-# 5. Optional: run multi-seed benchmark
-python main.py --seeds 5
 ```
-
-Set `TRANSFORMERS_NO_TF=1` and `USE_TF=0` if you have TensorFlow installed.
+memorylens/
+├── memory/            Memory backend implementations — add new backends here
+│   ├── base.py        Abstract BaseMemory interface (3 methods every backend must implement)
+│   ├── naive.py       Naive full-history backend (simplest example)
+│   ├── rag.py         Semantic retrieval backend (sentence-transformers)
+│   ├── cascading.py   Three-tier hot/warm/cold with Ebbinghaus temporal decay
+│   ├── entity.py      Structured key-value entity extraction (great reference for new backends)
+│   └── decay.py       Temporal decay functions (ebbinghaus, exponential, linear)
+├── evaluation/
+│   ├── metrics.py     All benchmark metrics — add new metrics here
+│   ├── benchmark.py   Benchmark orchestrator — registers backends, runs eval loop
+│   ├── stats.py       Multi-seed aggregation and forgetting-curve fitting
+│   └── logger.py      Experiment logging (JSON + CSV)
+├── simulator/
+│   ├── facts.py       Fact dataclass and BENCHMARK_FACTS
+│   ├── conversation.py  generate_conversation() — builds the simulated chat
+│   ├── personas.py    5 diverse personas for multi-seed runs
+│   └── scenarios/     Domain-specific scenarios (edtech, customer_support, medical…)
+├── utils/
+│   ├── embeddings.py  Local sentence-transformer embeddings (no API key needed)
+│   └── providers.py   LLM provider abstraction (Groq, OpenAI, Anthropic, Ollama…)
+├── tests/             Integration tests — run with: pytest tests/ -v
+├── dashboard.py       Streamlit visualisation dashboard
+├── main.py            CLI entry point
+├── quick_demo.py      Zero-API-key demo
+├── api/               FastAPI REST server (planned — see Issue #25)
+└── docs/              Guides and comparison docs
+```
 
 ---
 
@@ -147,94 +200,111 @@ Wire it into the `CheckpointResult` dataclass in `evaluation/benchmark.py` and a
 
 ---
 
-## How to add a new persona / scenario
+## How to add a new domain scenario
 
-MemoryLens ships with 5 personas for multi-seed validation (`simulator/personas.py`). Adding more personas or domain scenarios (medical, customer support, education) strengthens the benchmark.
-
-**Add a persona:**
+Copy `simulator/scenarios/edtech.py` as a starting template:
 
 ```python
-# simulator/personas.py — add to PERSONA_POOL
-[
-    Fact("name",       "Yuki Tanaka",     injected_at=0),
-    Fact("city",       "Tokyo",           injected_at=1, updated_at=40, updated_value="Osaka"),
-    Fact("occupation", "nurse",           injected_at=2),
-    # ... 8 facts total, matching the keys in BENCHMARK_FACTS ...
+# simulator/scenarios/your_scenario.py
+from simulator.facts import Fact
+
+YOUR_FACTS = [
+    Fact("name",  "Alice Chen",    injected_at=0),
+    Fact("role",  "developer",     injected_at=2),
+    Fact("city",  "Singapore",     injected_at=4, updated_at=40, updated_value="Sydney"),
+    # 8 facts total; at least 2 should have updated_at set
+]
+
+YOUR_PERSONA_POOL = [YOUR_FACTS, ...]  # 5 different persona fact-lists
+YOUR_FILLER_TURNS = [                  # 20+ domain-specific questions
+    "Can you help me with...",
+    ...
 ]
 ```
 
-**Add a domain scenario** (e.g., medical): create `simulator/medical_facts.py` with a `MEDICAL_FACTS` list and a matching `generate_medical_conversation()` function. Then run:
+Then add a `--scenario your_scenario` case to `main.py` (copy the existing `edtech` block exactly).
 
-```bash
-python main.py --backends naive rag cascading   # with your scenario wired in
-```
+**Open scenarios:** #23 (CustomerSupport), #24 (Medical) — good first contributions!
 
 ---
 
 ## Running tests
 
 ```bash
-# All 24 integration tests (no API key needed)
-python tests/test_pipeline.py
+# Full test suite (no API key needed):
+pytest tests/ -v
 
-# Import smoke test
-python tests/test_imports.py
+# Run only tests matching a keyword:
+pytest tests/ -v -k "cascading"
+pytest tests/ -v -k "recall or drift"
 
-# Quick demo with real benchmark numbers
-python main.py
+# Quick demo (confirms zero-API-key path works):
+python quick_demo.py
 
-# Multi-seed with confidence intervals
+# Full benchmark run:
+python main.py --backends naive rag cascading --turns 50
+
+# Multi-seed with confidence intervals:
 python main.py --seeds 5
 ```
 
-CI runs both test files on Python 3.10 and 3.11 on every push.
+CI runs `pytest tests/` on Python 3.10 and 3.11 on every push. All tests must pass without an API key.
+
+---
+
+## Commit style
+
+Use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat: add GraphMemory backend using NetworkX
+fix: patch stale cold-tier summaries on fact update
+docs: add customer_support scenario to README
+test: add contradiction_score integration tests
+chore: add networkx to requirements.txt
+refactor: extract _extract_entity() helper from EntityMemory
+```
 
 ---
 
 ## Submitting a PR
 
-1. **Fork** the repo and create a branch: `git checkout -b feat/your-feature`
+1. Fork the repo and create a branch: `git checkout -b feat/your-feature`
 2. Make your changes with tests
-3. Run `python tests/test_pipeline.py` — all 24 tests must pass
+3. Run `pytest tests/ -v` — all tests must pass
 4. Open a PR against `main` — fill in the PR template
-5. A maintainer will review within 48 hours
+5. Reference the issue: `Closes #<issue-number>` in the PR description
 
 **PR checklist:**
-- [ ] All 24 tests pass locally
-- [ ] New backend/metric has at least one test
-- [ ] `CHANGELOG.md` updated under `## [Unreleased]`
-- [ ] `VALID_BACKENDS` updated in `evaluation/benchmark.py` if adding a backend
+- [ ] All existing tests pass: `pytest tests/ -v`
+- [ ] New tests added for new functionality
+- [ ] Docstrings added on all new public functions/classes
+- [ ] Type hints used on all new function signatures
+- [ ] If adding a backend: registered in `VALID_BACKENDS` and `_make_memory()`
+- [ ] If adding a scenario: `--scenario` flag added to `main.py`
+- [ ] README updated if new CLI flags or user-facing features were added
+- [ ] No API key required to run any new tests
 
 ---
 
-## Good first issues
+## Code standards
 
-Open, well-scoped tasks — each has clear acceptance criteria:
-
-| Task | Difficulty | Where | Label |
-|------|-----------|-------|-------|
-| Update-aware Cascading — patch Cold tier summaries when a fact updates | Medium | `memory/cascading.py` | `good first issue` |
-| Add confidence interval error bars to decay charts | Easy | `dashboard.py` | `good first issue` |
-| EdTech scenario — student/teacher memory (subject performance, weak topics) | Easy | `simulator/` | `good first issue` |
-| `pip install memorylens` — complete `pyproject.toml` setup and PyPI publish | Easy | root | `good first issue` |
-| Qdrant vector DB backend (replaces NumPy cosine) | Medium | `memory/` | `enhancement` |
-| EntityMemory backend — named-entity extraction into key-value store | Medium | `memory/` | `new-backend` |
-| Medical scenario — patient history across multi-session conversations | Medium | `simulator/` | `enhancement` |
-| LangGraph orchestration wrapper | Hard | new | `enhancement` |
-| arXiv preprint from `paper/memorylens_paper.md` | Medium | `paper/` | `research` |
-
-Browse all: [github.com/Neal006/memorylens/issues](https://github.com/Neal006/memorylens/issues)
+| Rule | Why |
+|------|-----|
+| **Type hints** on all public functions | Enables IDE autocomplete, catches bugs early |
+| **Docstrings** on all public classes and functions | Helps contributors understand intent without reading implementation |
+| **No new top-level dependencies** without issue discussion | Keeps install size predictable |
+| **All new metrics return `float` in `[0, 1]`** | Ensures dashboard and aggregation code work without guards |
+| **All tests pass without an API key** | Keeps CI fast and accessible to all contributors |
+| **PEP 8**, 100-char line limit | Consistency |
 
 ---
 
-## Style guide
+## Getting help
 
-- **Python**: PEP 8, 100-char line limit
-- **Docstrings**: one-line summary + describe the return value
-- **Type hints**: all public function signatures must be typed
-- **Commit messages**: `type: short description` — type ∈ `feat / fix / docs / test / refactor`
-- **Core metrics must be deterministic**: `evaluation/metrics.py` functions must work without any API key
+- **Stuck on an issue?** Comment on it — maintainers respond promptly
+- **General questions?** Open a [Discussion](https://github.com/Neal006/memorylens/discussions)
+- **Best reference for new backends:** `memory/entity.py` — the shortest, cleanest example
+- **CI failing?** Run `pytest tests/ -v` locally first; the error message is usually self-explanatory
 
----
-
-Questions? Open a [Discussion](https://github.com/Neal006/memorylens/discussions) or comment on any issue.
+Welcome aboard — we're glad you're here!

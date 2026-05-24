@@ -2,7 +2,7 @@
 name: Feature Request
 about: Propose a new feature, LLM memory backend, evaluation metric, or benchmark scenario for MemoryLens
 title: "[FEAT] "
-labels: enhancement
+labels: "enhancement, status: open-for-contribution"
 assignees: ''
 ---
 

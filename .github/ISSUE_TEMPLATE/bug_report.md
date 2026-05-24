@@ -2,7 +2,7 @@
 name: Bug Report
 about: Something is broken or producing wrong results
 title: "[BUG] "
-labels: bug
+labels: "bug, status: open-for-contribution"
 assignees: ''
 ---
 

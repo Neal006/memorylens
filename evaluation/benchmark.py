@@ -8,6 +8,7 @@ from memory.rag import RAGMemory
 from memory.rag_chunked import ChunkedRAGMemory
 from memory.cascading import CascadingTemporalMemory
 from memory.summary import SummaryMemory
+from memory.entity import EntityMemory
 from memory.base import BaseMemory
 from evaluation.metrics import (
     recall_at_t, temporal_drift_score, memory_noise_ratio, precision_at_k,
@@ -21,7 +22,7 @@ OFF_TOPIC_QUERY = "What is the best sorting algorithm for large datasets?"
 
 _NAN = float("nan")
 
-VALID_BACKENDS = ["naive", "rag", "rag_chunked", "cascading", "summary"]
+VALID_BACKENDS = ["naive", "rag", "rag_chunked", "cascading", "summary", "entity"]
 
 
 @dataclass
@@ -60,6 +61,8 @@ def _make_memory(name: str, decay: str = "ebbinghaus") -> BaseMemory:
         return CascadingTemporalMemory(decay=decay)
     if name == "summary":
         return SummaryMemory(window_size=20, use_llm=None)
+    if name == "entity":
+        return EntityMemory()
     raise ValueError(
         f"Unknown backend: '{name}'. "
         f"Choose from: {VALID_BACKENDS}"

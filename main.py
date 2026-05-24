@@ -51,7 +51,7 @@ def main() -> None:
                         default=[10, 25, 50, 75, 100])
     parser.add_argument("--backends",    nargs="+",
                         default=["naive", "rag", "cascading"],
-                        help="naive | rag | rag_chunked | cascading | summary")
+                        help="naive | rag | rag_chunked | cascading | summary | entity")
     parser.add_argument("--output",      type=str,  default="results.json")
     parser.add_argument("--log",         action="store_true",
                         help="Save run to experiment_logs/")

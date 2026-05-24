@@ -55,7 +55,7 @@ def main() -> None:
                         default=[10, 25, 50, 75, 100])
     parser.add_argument("--backends",    nargs="+",
                         default=["naive", "rag", "cascading"],
-                        help="naive | rag | rag_chunked | cascading | summary")
+                        help="naive | rag | rag_chunked | cascading | summary | entity")
     parser.add_argument("--output",      type=str,  default="results.json")
     parser.add_argument("--log",         action="store_true",
                         help="Save run to experiment_logs/")
@@ -73,6 +73,9 @@ def main() -> None:
     parser.add_argument("--fit-curves",  action="store_true",
                         help="After benchmarking, fit Ebbinghaus + exponential decay curves "
                              "to recall@T data and report half-life / stability / R²")
+    parser.add_argument("--scenario",    type=str,  default="default",
+                        choices=["default", "edtech"],
+                        help="Conversation scenario: default (tech Q&A) | edtech (student-tutor)")
     args = parser.parse_args()
 
     # ── List providers ────────────────────────────────────────────────────────
@@ -108,6 +111,19 @@ def main() -> None:
 
     multi_seed = args.seeds > 1
 
+    # ── Resolve scenario ─────────────────────────────────────────────────────
+    scenario_facts  = None
+    scenario_filler = None
+    scenario_pool   = None
+
+    if args.scenario == "edtech":
+        from simulator.scenarios.edtech import (
+            EDTECH_FACTS, EDTECH_FILLER_TURNS, EDTECH_PERSONA_POOL,
+        )
+        scenario_facts  = EDTECH_FACTS
+        scenario_filler = EDTECH_FILLER_TURNS
+        scenario_pool   = EDTECH_PERSONA_POOL
+
     # ── Banner ───────────────────────────────────────────────────────────────
     print("=" * 65)
     print("  MemoryLens -- LLM Memory Decay Benchmark")
@@ -116,6 +132,7 @@ def main() -> None:
     print(f"  Checkpoints : {sorted(args.checkpoints)}")
     print(f"  Backends    : {args.backends}")
     print(f"  Decay       : {args.decay}")
+    print(f"  Scenario    : {args.scenario}")
     if multi_seed:
         print(f"  Seeds       : {args.seeds} (multi-seed -- will report mean +/- std)")
     print(f"  LLM eval    : {'ON  (' + provider.name + ')' if provider else 'OFF (content-only)'}")
@@ -132,6 +149,8 @@ def main() -> None:
             provider=provider,
             decay=args.decay,
             progress=print,
+            persona_pool=scenario_pool,
+            filler_turns=scenario_filler,
         )
         _print_multi_seed_results(aggregated, args.backends)
         _save(aggregated, args.output)
@@ -150,10 +169,12 @@ def main() -> None:
         raw = run_benchmark(
             total_turns=args.turns,
             eval_checkpoints=sorted(args.checkpoints),
+            facts=scenario_facts,
             backends=args.backends,
             provider=provider,
             decay=args.decay,
             progress=print,
+            filler_turns=scenario_filler,
         )
         display = results_to_display_dict(raw)
         _print_single_seed_results(display, args.backends)

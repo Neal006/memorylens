@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- SQLite persistent storage (`utils/storage.py`) — queryable database replacing flat JSON/CSV logs
+- Migration script (`utils/migrate_legacy_logs.py`) — one-shot import of existing JSON logs into SQLite
+- `Storage.compare_runs()` — cross-run recall comparison API
+- `log_run()` now writes to SQLite alongside existing JSON/CSV output (backward compatible)
+- `list_runs()` queries SQLite first, falls back to filesystem scan
+
+### Fixed
+
+- `_append_csv_summary` now properly filters `has_llm_eval` from display_data (pre-existing bug where `has_llm_eval: True` caused `TypeError` when iterating display_data)
+
 ### Added — Research-Grade Fixes (`feat/research-grade-fixes`)
 
 **Fix 1 — Multi-seed statistical validation**

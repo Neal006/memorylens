@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Documentation — Metric Accuracy Clarifications
+
+Three research-quality gaps identified and documented across README, docs/, and ROADMAP:
+
+- **±0.0% std for structure-deterministic backends** — Naive and Cascading produce std=0% across 5 personas because they make eviction/decay decisions based on *position and elapsed time*, not content values. All personas share identical injection timing, so results are structurally identical. Chunked RAG shows real variance (±3.8%) because cosine similarity scoring is content-dependent. Documented with explanation in README results tables. Fix tracked in ROADMAP as "varied persona injection timing."
+
+- **SummaryMemory 100% recall is extractive-mode behavior** — In zero-API-key mode, SummaryMemory keeps fact-bearing messages verbatim (selective full history, not true compression). 100% recall is therefore expected and not a performance claim. With real LLM compression (any API key), abstractive paraphrasing can cause substring-match failures. Tables and callouts updated to label these results as "(extractive mode)."
+
+- **Temporal Drift is a retrieval-layer proxy** — `temporal_drift_score` counts stale value appearances in retrieved context, which overestimates actual stale-answer rates (an LLM given both old and new values often resolves to the correct one). Clarified as a worst-case upper bound. `llm_temporal_drift` (LLM mode) is the behavioral measurement. Both the README metric table and `docs/why-memory-evaluation-matters.md` updated accordingly.
+
 ### Added — Research-Grade Fixes (`feat/research-grade-fixes`)
 
 **Fix 1 — Multi-seed statistical validation**

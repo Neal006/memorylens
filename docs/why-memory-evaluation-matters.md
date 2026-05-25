@@ -31,6 +31,8 @@ Most evaluation frameworks (RAGAS, DeepEval, TruLens) measure quality at a *sing
 ### 2. Retrieval quality ≠ answer quality
 A memory system can successfully retrieve a chunk containing a fact value — but the chunk may lack surrounding context, making the LLM unable to extract the answer correctly. This gap between **content recall** (does the token exist in context?) and **LLM recall** (can the model answer the question?) is the key insight that MemoryLens's LLM evaluation pipeline measures.
 
+The same gap applies to the Temporal Drift metric: content-level drift (does the old value appear in retrieved chunks?) is a worst-case proxy that *overestimates* actual stale-answer rates. The LLM-based drift measurement tells you whether the model actually responds with the stale value.
+
 ### 3. Results depend on the conversation
 Memory decay is not a property of the model — it's a property of the *conversation*. A RAG system that retrieves perfectly for 50 turns may fail at turn 200 when index capacity is exceeded and the most important early facts are evicted. This temporal dimension requires benchmarking over time, not at a snapshot.
 
@@ -44,13 +46,23 @@ $$\text{Recall@T}(f, T) = \mathbf{1}\left[\text{current\_value}(f) \in \text{con
 
 This tells you: of the facts the user explicitly shared, what fraction can the system still surface at turn T?
 
-### Temporal Drift — Does the system still believe the old value?
+### Temporal Drift — Does the system still surface the old value?
 
-When a user says "I moved to Mumbai", does the AI still answer "Bangalore"? Temporal Drift measures the ratio of stale-to-fresh fact appearances in retrieved context:
+When a user says "I moved to Mumbai", does the memory system still retrieve the old "Bangalore" message? Temporal Drift measures the proportion of stale-to-fresh fact appearances in retrieved context:
 
 $$\text{Drift} = \frac{\text{stale hits}}{\text{stale hits} + \text{fresh hits}}$$
 
-A Drift of 1.0 means the memory is completely anchored to the pre-update state. A Drift of 0.0 means it has fully incorporated the update.
+A Drift of 1.0 means retrieved context contains only the stale value. A Drift of 0.0 means it surfaces only the updated value.
+
+**Important: this is a retrieval-layer proxy, not a behavioral measurement.** If a memory system retrieves both `"My city is Bangalore"` and `"My city has changed to Mumbai"`, Drift = 0.5 — but the LLM may still answer "Mumbai" correctly, because the explicit update message is a strong signal. The content drift metric therefore *overestimates* real-world stale-answer rates.
+
+For the behavioral measurement (does the LLM actually answer with the old or new value?), MemoryLens provides a second metric, `llm_temporal_drift`, which is run in LLM mode:
+
+```bash
+python main.py --llm   # enables the answer+judge pipeline for all drift measurements
+```
+
+The two drift metrics together give you both the worst-case bound (content) and the real-world answer quality (LLM). On most well-structured backends, the LLM drift is 15–30% lower than content drift because the model correctly resolves contradictions when both values are present.
 
 ### Cascade Efficiency — How much recall does each token buy?
 

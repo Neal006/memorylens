@@ -43,9 +43,13 @@ Run `python main.py` and get statistically valid results like these — **no API
 | Ideal RAG (unbounded, whole-msg) | 100.0 ± 0.0% | 45 | — |
 | **Chunked RAG** (production-realistic) | **85.0 ± 3.8%** | **38** | — |
 | **Cascading Temporal** (Ebbinghaus decay) | **87.5 ± 0.0%** | **218** | **5.67×** |
-| SummaryMemory (rolling compression) | 100.0 ± 0.0% | 318 | — |
+| SummaryMemory (extractive mode) | 100.0 ± 0.0% | 318 | — |
 
-> **Chunked RAG vs Ideal RAG** shows the gap between a theoretical upper bound and a production-realistic retrieval system. The 15pp difference is what chunking + index eviction costs you. The **Cascading Temporal** backend delivers **5.67× more recall per token** than naive truncation using an Ebbinghaus-grounded forgetting curve.
+> **Why ± 0.0% std for some backends?** Naive and Cascading make eviction and decay decisions based on *position and elapsed time*, not on the content of each persona's values. Since all 5 personas share the same fact injection timing (T=0,1,2,3,4,5,7,9) and update timing (T=40,60), these backends produce identical results across personas — real variance requires varying injection timing, which is a [known v0.4 improvement](#roadmap). Chunked RAG shows real variance (±3.8%) because cosine similarity scoring depends on the actual text of each persona's facts.
+
+> **Why does SummaryMemory show 100% recall?** In zero-API-key mode, SummaryMemory uses *extractive* compression: it keeps only messages containing personal-fact keywords (`name`, `city`, `age`, etc.) verbatim. This is effectively selective full history — fact values are never paraphrased or lost, so substring match recall is always 100%. Set any LLM provider key and compression becomes abstractive; paraphrased facts may not match the substring check, which is the honest production measurement. See [How It Works](#how-it-works) for the full tradeoff.
+
+> **Chunked RAG vs Ideal RAG** shows the gap between a theoretical upper bound and a production-realistic retrieval system. The 15pp difference is the cost of chunking + bounded index eviction. The **Cascading Temporal** backend delivers **5.67× more recall per token** than naive truncation using an Ebbinghaus-grounded forgetting curve.
 
 ---
 
@@ -141,11 +145,13 @@ MemoryLens has three layers:
 |--------|-----------------|---------|
 | **Recall@T** | Is the correct fact value in retrieved context at turn T? | `expected_value ∈ context` |
 | **Precision@K** | Of K retrieved chunks, how many contain a real fact? | `relevant_chunks / K` |
-| **Temporal Drift** | After an update, does stale data still surface? | `old_hits / (old + new hits)` |
+| **Temporal Drift** | After an update, what fraction of retrieved context still contains the stale value? (retrieval-layer proxy — see note) | `old_hits / (old + new hits)` |
 | **Memory Noise Ratio** | What fraction of retrieved context is irrelevant? | `1 − relevant / total` |
 | **Cascade Efficiency** | Recall-per-token ratio vs naive baseline | `(cascading r/t) / (naive r/t)` |
 
 All five metrics are **content-based and deterministic** — no LLM call, fully reproducible.
+
+> **Temporal Drift is a worst-case proxy.** It measures stale-data *contamination in the retrieval layer*, not whether the LLM actually answers with the stale value. If a backend retrieves both "Bangalore" and "Mumbai", drift = 0.5 — but an LLM given both values would likely pick the correct one. This means content drift *overestimates* the real problem. For behavioral measurement (does the LLM answer with the old or new value?), use LLM mode: `python main.py --llm`, which runs `llm_temporal_drift()` — a two-stage answer+judge pipeline.
 
 ### The 4 Temporal Decay Functions
 
@@ -172,7 +178,9 @@ The Ebbinghaus curve produces the highest cascade efficiency (5.67×) because it
 | Ideal RAG | 100±0% | 100±0% | 100±0% | 100±0% | 100±0% |
 | Chunked RAG | 100±0% | 96±2% | 92±3% | 88±4% | 85±4% |
 | Cascading | 100±0% | 100±0% | 87.5±0% | 87.5±0% | 87.5±0% |
-| SummaryMemory | 100±0% | 100±0% | 100±0% | 100±0% | 100±0% |
+| SummaryMemory *(extractive)* | 100±0% | 100±0% | 100±0% | 100±0% | 100±0% |
+
+*Std=0% for Naive, Ideal RAG, Cascading, and SummaryMemory because their behavior is determined by injection timing, not content values. Chunked RAG's variance comes from embedding similarity differences across persona values. See the callout above for the full explanation.*
 
 ### Token cost per query @ T=100
 

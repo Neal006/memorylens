@@ -41,6 +41,7 @@ Want to pick something up? Check [CONTRIBUTING.md](CONTRIBUTING.md) and claim an
 ### High Priority Fixes
 - [ ] **Update-aware Cascading** — when a fact update event fires, patch existing Cold tier summaries to reflect the new value. This eliminates the temporal drift regression where cold summaries retain stale facts. ([open issue](https://github.com/Neal006/memorylens/issues))
 - [ ] **Confidence interval charts** — add ± std error bars to all decay curves in the Streamlit dashboard when multi-seed results are loaded
+- [ ] **Varied persona injection timing** — currently all 5 personas share identical fact injection timing (T=0,1,2,3,4,5,7,9), causing structure-deterministic backends (Naive, Cascading) to produce std=0%. Fix: randomise injection turns ±3 turns per persona per seed so timing-based backends show real variance across seeds. This is a known limitation documented in the README.
 
 ### New Memory Backends
 - [ ] **EntityMemory** — extract named entities into a structured key-value store; benchmark whether structured storage beats unstructured retrieval ([guide](docs/adding-a-new-backend.md))

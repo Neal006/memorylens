@@ -14,7 +14,7 @@
 | **No API key mode** | ✅ Full benchmark | ❌ | ❌ | Partial | ❌ | ❌ |
 | **Decay formula** | ✅ Ebbinghaus (1885) | N/A | N/A | N/A | N/A | N/A |
 | **Statistical validation** | ✅ n=5, mean ± std | ❌ | ❌ | ❌ | N/A | N/A |
-| **Temporal drift metric** | ✅ | ❌ | ❌ | ❌ | N/A | N/A |
+| **Temporal drift metric** | ✅ (retrieval proxy + LLM behavioral) | ❌ | ❌ | ❌ | N/A | N/A |
 | **Token efficiency metric** | ✅ Cascade Efficiency | ❌ | Partial | ❌ | N/A | N/A |
 | **Open source** | ✅ MIT | ✅ MIT | ✅ MIT | ✅ MIT | ✅ MIT | ✅ MIT |
 

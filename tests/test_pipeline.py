@@ -378,6 +378,29 @@ def test_storage_get_run_not_found():
     print("PASS: storage get_run returns None for missing run")
 
 
+def test_storage_save_run_idempotent():
+    """Calling save_run twice with the same run_id must not duplicate rows."""
+    from utils.storage import Storage
+    import tempfile, os
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+    try:
+        store = Storage(db_path)
+        display = {"checkpoints": [10], "naive": {"recall": [0.8], "precision": [0.8],
+                   "drift": [0], "noise": [0], "tokens": [100]}}
+        store.save_run("dup_test", {}, display)
+        store.save_run("dup_test", {}, display)  # same run_id again
+        loaded = store.get_run("dup_test")
+        assert loaded is not None
+        assert len(loaded["naive"]["recall"]) == 1, "Duplicate rows detected!"
+        assert loaded["naive"]["recall"] == [0.8]
+    finally:
+        store.close()
+        os.unlink(db_path)
+    print("PASS: storage save_run idempotent")
+
+
 # ── Logger + SQLite integration tests ────────────────────────────────────────
 
 def _clean_csv_row(run_id: str) -> None:
@@ -431,6 +454,7 @@ def test_logger_writes_sqlite():
     store.conn.execute("DELETE FROM results WHERE run_id = ?", (run_id,))
     store.conn.execute("DELETE FROM runs WHERE run_id = ?", (run_id,))
     store.conn.commit()
+    store.close()
     _clean_csv_row(run_id)
     print("PASS: logger writes to SQLite")
 
@@ -453,6 +477,7 @@ def test_list_runs_returns_sqlite_runs():
     store.conn.execute("DELETE FROM results WHERE run_id = ?", ("_test_list_runs",))
     store.conn.execute("DELETE FROM runs WHERE run_id = ?", ("_test_list_runs",))
     store.conn.commit()
+    store.close()
     print("PASS: list_runs returns SQLite runs")
 
 
@@ -490,6 +515,7 @@ if __name__ == "__main__":
         test_storage_list_runs,
         test_storage_compare_runs,
         test_storage_get_run_not_found,
+        test_storage_save_run_idempotent,
         # Logger + SQLite integration
         test_logger_writes_sqlite,
         test_list_runs_returns_sqlite_runs,

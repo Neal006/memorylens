@@ -37,11 +37,16 @@ def log_run(display_data: Dict, config: Dict[str, Any], run_id: Optional[str] = 
     _append_csv_summary(display_data, config, run_id)
 
     # ── SQLite persistence (non-blocking on failure) ────────────────────────
+    store: Optional[Storage] = None
     try:
-        Storage().save_run(run_id, config, display_data)
+        store = Storage()
+        store.save_run(run_id, config, display_data)
     except Exception as exc:
         import warnings
         warnings.warn(f"SQLite write failed for run {run_id}: {exc}")
+    finally:
+        if store is not None:
+            store.close()
 
     return json_path
 
@@ -69,6 +74,9 @@ def _append_csv_summary(display_data: Dict, config: Dict, run_id: str) -> None:
                 "total_turns": config.get("total_turns", ""),
             })
 
+    if not rows:
+        return
+
     with open(csv_path, "a", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=rows[0].keys())
         if not file_exists:
@@ -86,6 +94,7 @@ def list_runs() -> list:
     and ``config`` keys (unified schema for both storage backends).
     """
     # ── Try SQLite first ────────────────────────────────────────────────────
+    store: Optional[Storage] = None
     try:
         store = Storage()
         runs = store.list_runs(limit=50)
@@ -93,6 +102,9 @@ def list_runs() -> list:
             return runs
     except Exception:
         pass
+    finally:
+        if store is not None:
+            store.close()
 
     # ── Fallback: scan filesystem (legacy) ─────────────────────────────────
     log_dir = _ensure_dir()

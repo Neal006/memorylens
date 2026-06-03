@@ -96,6 +96,11 @@ class Storage:
                 (run_id, _now_iso(), json.dumps(config)),
             )
 
+            # Delete stale results before inserting fresh ones to prevent
+            # duplicate rows on repeated run_id (INSERT OR REPLACE on runs
+            # does not cascade to results).
+            self.conn.execute("DELETE FROM results WHERE run_id = ?", (run_id,))
+
             # Unfold display_data into metric rows
             checkpoints: List[int] = display_data.get("checkpoints", [])
             backends = [k for k in display_data if k != "checkpoints" and k != "has_llm_eval"]
@@ -121,7 +126,14 @@ class Storage:
     # ── Read ───────────────────────────────────────────────────────────────
 
     def get_run(self, run_id: str) -> Optional[Dict[str, Any]]:
-        """Return the full display_data dict for a run, or None if not found."""
+        """Return the full display_data dict for a run, or None if not found.
+
+        Notes
+        -----
+        Metric arrays may contain ``None`` for checkpoints where the metric
+        was not collected (e.g. ``llm_recall`` when LLM eval was off).
+        Callers should handle ``None`` before arithmetic.
+        """
         cur = self.conn.execute(
             "SELECT config_json FROM runs WHERE run_id = ?", (run_id,)
         )
@@ -192,16 +204,21 @@ class Storage:
         return runs
 
     def compare_runs(self, run_id_a: str, run_id_b: str) -> Dict[str, Any]:
-        """Return recall arrays for two runs, keyed by backend and run_id."""
+        """Return recall arrays for two runs, keyed by backend and run_id.
+
+        ``None`` values (missing checkpoints) are filtered out so
+        downstream arithmetic / plotting consumers receive clean arrays.
+        """
         def _extract_recall(rid: str) -> Dict[str, List[float]]:
             data = self.get_run(rid)
             if data is None:
                 return {}
-            return {
-                k: list(v["recall"])
-                for k, v in data.items()
-                if k not in ("checkpoints", "has_llm_eval")
-            }
+            result: Dict[str, List[float]] = {}
+            for k, v in data.items():
+                if k in ("checkpoints", "has_llm_eval"):
+                    continue
+                result[k] = [x for x in v["recall"] if x is not None]
+            return result
 
         return {
             "run_a": {"run_id": run_id_a, "backends": _extract_recall(run_id_a)},

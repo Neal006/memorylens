@@ -72,4 +72,4 @@ if __name__ == "__main__":
     print("Migrating legacy JSON logs to SQLite...")
     total = migrate()
     print(f"Done. {total} run(s) migrated.")
-    sys.exit(0 if total >= 0 else 1)
+    sys.exit(0)

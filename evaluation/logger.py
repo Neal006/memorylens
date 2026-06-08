@@ -6,6 +6,7 @@ reproducible research and arXiv submission.
 import csv
 import json
 import os
+import warnings
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -42,7 +43,6 @@ def log_run(display_data: Dict, config: Dict[str, Any], run_id: Optional[str] = 
         store = Storage()
         store.save_run(run_id, config, display_data)
     except Exception as exc:
-        import warnings
         warnings.warn(f"SQLite write failed for run {run_id}: {exc}")
     finally:
         if store is not None:
@@ -98,6 +98,8 @@ def list_runs() -> list:
     try:
         store = Storage()
         runs = store.list_runs(limit=50)
+        # Once any SQLite run exists, filesystem logs are bypassed.
+        # Run python utils/migrate_legacy_logs.py to import them.
         if runs:
             return runs
     except Exception:

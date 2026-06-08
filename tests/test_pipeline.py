@@ -287,6 +287,200 @@ def test_persona_pool_structure():
     print(f"PASS: persona pool structure ({len(PERSONA_POOL)} personas, {len(expected_keys)} keys each)")
 
 
+# ── SQLite Storage tests ──────────────────────────────────────────────────────
+
+def test_storage_save_and_get_run():
+    from utils.storage import Storage
+    import tempfile, os
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+    try:
+        store = Storage(db_path)
+        display = {
+            "checkpoints": [10, 25],
+            "naive": {
+                "recall": [1.0, 0.8], "precision": [0.9, 0.7],
+                "drift": [0.0, 0.1], "noise": [0.5, 0.8],
+                "tokens": [100, 500],
+            }
+        }
+        store.save_run("test_run", {"total_turns": 25, "backends": ["naive"]}, display)
+        loaded = store.get_run("test_run")
+        assert loaded is not None
+        assert loaded["checkpoints"] == [10, 25]
+        assert loaded["naive"]["recall"] == [1.0, 0.8]
+        assert loaded["naive"]["tokens"] == [100, 500]
+    finally:
+        store.close()
+        os.unlink(db_path)
+    print("PASS: storage save and get run")
+
+
+def test_storage_list_runs():
+    from utils.storage import Storage
+    import tempfile, os
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+    try:
+        store = Storage(db_path)
+        display = {"checkpoints": [10], "naive": {"recall": [0.5], "precision": [0.5],
+                   "drift": [0], "noise": [0], "tokens": [100]}}
+        store.save_run("run_b", {"total_turns": 10}, display)
+        store.save_run("run_a", {"total_turns": 10}, display)
+        runs = store.list_runs(limit=10)
+        assert len(runs) >= 2
+        ids = [r["run_id"] for r in runs]
+        assert "run_a" in ids and "run_b" in ids, f"Missing runs in {ids}"
+    finally:
+        store.close()
+        os.unlink(db_path)
+    print("PASS: storage list runs")
+
+
+def test_storage_compare_runs():
+    from utils.storage import Storage
+    import tempfile, os
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+    try:
+        store = Storage(db_path)
+        display = {"checkpoints": [10], "naive": {"recall": [0.8], "precision": [0.8],
+                   "drift": [0], "noise": [0], "tokens": [100]}}
+        store.save_run("run_a", {}, display)
+        display["naive"]["recall"] = [0.9]
+        store.save_run("run_b", {}, display)
+        comp = store.compare_runs("run_a", "run_b")
+        assert comp["run_a"]["run_id"] == "run_a"
+        assert comp["run_b"]["run_id"] == "run_b"
+        assert comp["run_a"]["backends"]["naive"] == [0.8]
+        assert comp["run_b"]["backends"]["naive"] == [0.9]
+    finally:
+        store.close()
+        os.unlink(db_path)
+    print("PASS: storage compare runs")
+
+
+def test_storage_get_run_not_found():
+    from utils.storage import Storage
+    import tempfile, os
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+    try:
+        store = Storage(db_path)
+        assert store.get_run("nonexistent") is None
+    finally:
+        store.close()
+        os.unlink(db_path)
+    print("PASS: storage get_run returns None for missing run")
+
+
+def test_storage_save_run_idempotent():
+    """Calling save_run twice with the same run_id must not duplicate rows."""
+    from utils.storage import Storage
+    import tempfile, os
+
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = f.name
+    try:
+        store = Storage(db_path)
+        display = {"checkpoints": [10], "naive": {"recall": [0.8], "precision": [0.8],
+                   "drift": [0], "noise": [0], "tokens": [100]}}
+        store.save_run("dup_test", {}, display)
+        store.save_run("dup_test", {}, display)  # same run_id again
+        loaded = store.get_run("dup_test")
+        assert loaded is not None
+        assert len(loaded["naive"]["recall"]) == 1, "Duplicate rows detected!"
+        assert loaded["naive"]["recall"] == [0.8]
+    finally:
+        store.close()
+        os.unlink(db_path)
+    print("PASS: storage save_run idempotent")
+
+
+# ── Logger + SQLite integration tests ────────────────────────────────────────
+
+def _clean_csv_row(run_id: str) -> None:
+    """Remove a test run_id from runs_summary.csv to avoid accumulation."""
+    import csv
+    csv_path = os.path.join(
+        os.path.dirname(__file__), "..", "experiment_logs", "runs_summary.csv"
+    )
+    if not os.path.exists(csv_path):
+        return
+    rows = []
+    with open(csv_path, newline="") as fh:
+        reader = csv.DictReader(fh)
+        for row in reader:
+            if row.get("run_id") != run_id:
+                rows.append(row)
+    if rows:
+        with open(csv_path, "w", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=rows[0].keys())
+            writer.writeheader()
+            writer.writerows(rows)
+    else:
+        os.unlink(csv_path)
+
+
+def test_logger_writes_sqlite():
+    """log_run must write to SQLite, not just JSON."""
+    from evaluation.logger import log_run
+    from utils.storage import Storage
+    import os
+
+    display = {
+        "checkpoints": [10],
+        "naive": {"recall": [0.5], "precision": [0.5],
+                  "drift": [0], "noise": [0], "tokens": [100]},
+    }
+    config = {"total_turns": 10, "backends": ["naive"]}
+
+    run_id = "_test_sqlite_logger"
+    json_path = log_run(display, config, run_id=run_id)
+    assert os.path.exists(json_path), "JSON file must exist (backward compat)"
+
+    # Verify SQLite has the data
+    store = Storage()
+    loaded = store.get_run(run_id)
+    assert loaded is not None, "SQLite must contain the run"
+    assert loaded["naive"]["recall"] == [0.5]
+
+    # Cleanup test artifacts (JSON, SQLite, CSV)
+    os.unlink(json_path)
+    store.conn.execute("DELETE FROM results WHERE run_id = ?", (run_id,))
+    store.conn.execute("DELETE FROM runs WHERE run_id = ?", (run_id,))
+    store.conn.commit()
+    store.close()
+    _clean_csv_row(run_id)
+    print("PASS: logger writes to SQLite")
+
+
+def test_list_runs_returns_sqlite_runs():
+    """list_runs must return SQLite-backed runs, not just filesystem scans."""
+    from evaluation.logger import list_runs
+    from utils.storage import Storage
+
+    store = Storage()
+    display = {"checkpoints": [10], "naive": {"recall": [0.6], "precision": [0.6],
+               "drift": [0], "noise": [0], "tokens": [100]}}
+    store.save_run("_test_list_runs", {"total_turns": 10}, display)
+
+    runs = list_runs()
+    ids = [r["run_id"] for r in runs]
+    assert "_test_list_runs" in ids, "list_runs must include SQLite runs"
+
+    # Cleanup
+    store.conn.execute("DELETE FROM results WHERE run_id = ?", ("_test_list_runs",))
+    store.conn.execute("DELETE FROM runs WHERE run_id = ?", ("_test_list_runs",))
+    store.conn.commit()
+    store.close()
+    print("PASS: list_runs returns SQLite runs")
+
+
 if __name__ == "__main__":
     tests = [
         test_conversation_generator,
@@ -316,6 +510,15 @@ if __name__ == "__main__":
         # Stats / multi-seed
         test_stats_aggregate_metric,
         test_persona_pool_structure,
+        # SQLite Storage
+        test_storage_save_and_get_run,
+        test_storage_list_runs,
+        test_storage_compare_runs,
+        test_storage_get_run_not_found,
+        test_storage_save_run_idempotent,
+        # Logger + SQLite integration
+        test_logger_writes_sqlite,
+        test_list_runs_returns_sqlite_runs,
     ]
     failed = 0
     for t in tests:

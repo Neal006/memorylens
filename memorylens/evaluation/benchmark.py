@@ -1,40 +1,42 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Dict, Callable, Optional
 
-from simulator.facts import Fact, BENCHMARK_FACTS
-from simulator.conversation import generate_conversation
-from memory.naive import NaiveMemory
-from memory.rag import RAGMemory
-from memory.rag_chunked import ChunkedRAGMemory
-from memory.cascading import CascadingTemporalMemory
-from memory.summary import SummaryMemory
-from memory.entity import EntityMemory
-from memory.base import BaseMemory
-from evaluation.metrics import (
+from memorylens.simulator.facts import Fact, BENCHMARK_FACTS
+from memorylens.simulator.conversation import generate_conversation
+from memorylens.memory.naive import NaiveMemory
+from memorylens.memory.rag import RAGMemory
+from memorylens.memory.rag_chunked import ChunkedRAGMemory
+from memorylens.memory.cascading import CascadingTemporalMemory
+from memorylens.memory.summary import SummaryMemory
+from memorylens.memory.entity import EntityMemory
+from memorylens.memory.graph import GraphMemory
+from memorylens.memory.base import BaseMemory
+from memorylens.evaluation.metrics import (
     recall_at_t, temporal_drift_score, memory_noise_ratio, precision_at_k,
-    cascade_efficiency, llm_recall_at_t, llm_temporal_drift,
+    contradiction_score, cascade_efficiency, llm_recall_at_t, llm_temporal_drift,
 )
 
 if TYPE_CHECKING:
-    from utils.providers import LLMProvider
+    from memorylens.utils.providers import LLMProvider
 
 OFF_TOPIC_QUERY = "What is the best sorting algorithm for large datasets?"
 
 _NAN = float("nan")
 
-VALID_BACKENDS = ["naive", "rag", "rag_chunked", "cascading", "summary", "entity"]
+VALID_BACKENDS = ["naive", "rag", "rag_chunked", "cascading", "summary", "entity", "graph", "faiss"]
 
 
 @dataclass
 class CheckpointResult:
     turn:         int
     # ── Content-based (always available, fast) ───────────────────────────────
-    recall:       float
-    precision:    float
-    drift:        float
-    noise:        float
-    tokens:       int
-    cascade_eff:  float = 1.0
+    recall:        float
+    precision:     float
+    drift:         float
+    noise:         float
+    tokens:        int
+    contradiction: float = 0.0
+    cascade_eff:   float = 1.0
     # ── LLM-based (available when a provider is configured) ──────────────────
     llm_recall:   float = _NAN
     llm_drift:    float = _NAN
@@ -63,6 +65,11 @@ def _make_memory(name: str, decay: str = "ebbinghaus") -> BaseMemory:
         return SummaryMemory(window_size=20, use_llm=None)
     if name == "entity":
         return EntityMemory()
+    if name == "graph":
+        return GraphMemory()
+    if name == "faiss":
+        from memorylens.memory.vector_faiss import FAISSMemory
+        return FAISSMemory()
     raise ValueError(
         f"Unknown backend: '{name}'. "
         f"Choose from: {VALID_BACKENDS}"
@@ -171,6 +178,11 @@ def run_benchmark(
                     / len(drift_facts)
                     if drift_facts else 0.0
                 )
+                avg_contradiction = (
+                    sum(contradiction_score(memory, f, turn)["contradiction"] for f in drift_facts)
+                    / len(drift_facts)
+                    if drift_facts else 0.0
+                )
 
                 noise = memory_noise_ratio(memory, OFF_TOPIC_QUERY, known_values, turn)
 
@@ -216,6 +228,7 @@ def run_benchmark(
                     drift        = round(avg_drift, 4),
                     noise        = round(noise, 4),
                     tokens       = int(avg_tokens),
+                    contradiction = round(avg_contradiction, 4),
                     cascade_eff  = round(eff, 4),
                     llm_recall   = round(llm_recall_val, 4) if has_llm else _NAN,
                     llm_drift    = round(llm_drift_val,  4) if has_llm else _NAN,
@@ -248,8 +261,8 @@ def run_benchmark_multi_seed(
 
     Returns a nested dict ready for results_to_multi_seed_dict().
     """
-    from simulator.personas import PERSONA_POOL
-    from evaluation.stats import aggregate_checkpoint_series
+    from memorylens.simulator.personas import PERSONA_POOL
+    from memorylens.evaluation.stats import aggregate_checkpoint_series
 
     if eval_checkpoints is None:
         eval_checkpoints = [10, 25, 50, 75, 100]
@@ -287,7 +300,7 @@ def run_benchmark_multi_seed(
         ),
     }
 
-    metric_keys = ["recall", "precision", "drift", "noise", "tokens", "cascade_eff"]
+    metric_keys = ["recall", "precision", "drift", "noise", "tokens", "contradiction", "cascade_eff"]
 
     for backend_name in backends:
         runs_for_backend = [run[backend_name] for run in all_runs if backend_name in run]
@@ -323,7 +336,7 @@ def run_benchmark_multi_seed(
                     [v for v in row if v is not None]
                     for row in series
                 ]
-                from evaluation.stats import aggregate_checkpoint_series as acs
+                from memorylens.evaluation.stats import aggregate_checkpoint_series as acs
                 agg[llm_metric] = acs([[r[i] if i < len(r) else 0.0 for r in filtered]
                                         for i in range(len(checkpoints))])
 
@@ -349,6 +362,7 @@ def results_to_display_dict(results: Dict[str, BackendResult]) -> Dict:
             "precision":    [cp_map[t].precision   for t in checkpoints if t in cp_map],
             "drift":        [cp_map[t].drift       for t in checkpoints if t in cp_map],
             "noise":        [cp_map[t].noise       for t in checkpoints if t in cp_map],
+            "contradiction": [cp_map[t].contradiction for t in checkpoints if t in cp_map],
             "tokens":       [cp_map[t].tokens      for t in checkpoints if t in cp_map],
             "cascade_eff":  [cp_map[t].cascade_eff for t in checkpoints if t in cp_map],
             "llm_recall":   [

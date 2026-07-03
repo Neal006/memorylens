@@ -7,9 +7,9 @@ judge mode. All primary benchmark metrics remain content-based.
 """
 
 from typing import Dict, List, Optional
-from utils.llm import chat
-from memory.base import BaseMemory
-from simulator.facts import Fact
+from memorylens.utils.llm import chat
+from memorylens.memory.base import BaseMemory
+from memorylens.simulator.facts import Fact
 
 JUDGE_SYSTEM = """You are a strict evaluator. Given a question, the correct answer, and a model's response,
 output ONLY a JSON object with two keys:

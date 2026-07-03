@@ -17,7 +17,14 @@ import sqlite3
 from typing import Any, Dict, List, Optional
 
 
-_LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "experiment_logs")
+# Logs live in the working directory (overridable), not inside the installed
+# package — pip users must never write into site-packages.
+LOG_DIR = os.getenv(
+    "MEMORYLENS_LOG_DIR", os.path.join(os.getcwd(), "experiment_logs")
+)
+
+_METRIC_KEYS = ["recall", "precision", "drift", "noise", "contradiction",
+                "tokens", "cascade_eff", "llm_recall", "llm_drift"]
 
 
 class Storage:
@@ -25,8 +32,8 @@ class Storage:
 
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
-            os.makedirs(_LOG_DIR, exist_ok=True)
-            db_path = os.path.join(_LOG_DIR, "memorylens.db")
+            os.makedirs(LOG_DIR, exist_ok=True)
+            db_path = os.path.join(LOG_DIR, "memorylens.db")
         self._db_path = db_path
         self._conn: Optional[sqlite3.Connection] = None
 
@@ -106,8 +113,7 @@ class Storage:
             backends = [k for k in display_data if k != "checkpoints" and k != "has_llm_eval"]
 
             rows: List[tuple] = []
-            metric_keys = ["recall", "precision", "drift", "noise", "tokens",
-                           "cascade_eff", "llm_recall", "llm_drift"]
+            metric_keys = _METRIC_KEYS
             for backend in backends:
                 backend_data = display_data[backend]
                 for i, cp in enumerate(checkpoints):
@@ -160,8 +166,7 @@ class Storage:
         cps = sorted(checkpoints)
         display: Dict[str, Any] = {"checkpoints": cps, "has_llm_eval": False}
 
-        metric_keys = ["recall", "precision", "drift", "noise", "tokens",
-                       "cascade_eff", "llm_recall", "llm_drift"]
+        metric_keys = _METRIC_KEYS
 
         backend_meta = config.get("_backend_meta", {})
 

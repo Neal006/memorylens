@@ -28,12 +28,12 @@ def main() -> None:
     if not checkpoints:
         checkpoints = [args.turns]
 
-    from simulator.facts import BENCHMARK_FACTS
-    from simulator.conversation import generate_conversation
-    from memory.naive import NaiveMemory
-    from memory.rag import RAGMemory
-    from memory.cascading import CascadingTemporalMemory
-    from evaluation.metrics import (
+    from memorylens.simulator.facts import BENCHMARK_FACTS
+    from memorylens.simulator.conversation import generate_conversation
+    from memorylens.memory.naive import NaiveMemory
+    from memorylens.memory.rag import RAGMemory
+    from memorylens.memory.cascading import CascadingTemporalMemory
+    from memorylens.evaluation.metrics import (
         recall_at_t, temporal_drift_score, memory_noise_ratio,
         precision_at_k, cascade_efficiency,
     )
@@ -131,18 +131,18 @@ def main() -> None:
         vals = "  ".join(f"{eff_table['cascading'].get(c, 1.0):5.2f}x" for c in checkpoints)
         print(f"  {'cascading':<12}  {vals}")
 
-        # Business impact
+        # Illustrative cost projection: 100K queries/month at $1 per 1M input tokens
         qpm = 100_000
-        cost_inr = 83 / 1_000_000
+        cost_per_token = 1 / 1_000_000
         final_cp = checkpoints[-1]
-        print("\n  BUSINESS IMPACT @ 100K queries/month")
-        print(f"  {'Backend':<12}  {'Tokens/Q':>9}  {'Monthly(INR)':>13}  {'Recall':>8}")
+        print("\n  PROJECTED COST @ 100K queries/month  ($1 per 1M input tokens, illustrative)")
+        print(f"  {'Backend':<12}  {'Tokens/Q':>9}  {'Monthly($)':>11}  {'Recall':>8}")
         print("  " + "-" * 52)
         for name in backends:
             tok = tokens_table[name].get(final_cp, 0)
-            cost = tok * qpm * cost_inr
+            cost = tok * qpm * cost_per_token
             rec = recall_table[name].get(final_cp, 0)
-            print(f"  {name:<12}  {tok:>9,}  INR{cost:>9,.0f}  {rec:>7.1%}")
+            print(f"  {name:<12}  {tok:>9,}  ${cost:>9,.2f}  {rec:>7.1%}")
 
         print()
         print("  >> Run 'streamlit run dashboard.py' to see full visualisation")

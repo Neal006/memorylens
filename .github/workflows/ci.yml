@@ -8,10 +8,17 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11"]
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - os: windows-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
@@ -20,16 +27,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
-      - name: Cache pip
+      - name: Cache embedding model
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: ${{ runner.os }}-pip-
+          path: ~/.cache/huggingface
+          key: hf-all-MiniLM-L6-v2-${{ runner.os }}
 
-      - name: Install dependencies
-        run: pip install --upgrade pip && pip install -r requirements.txt
+      - name: Install package
+        run: pip install -e ".[server,dev]"
 
       - name: Import smoke test
         env:
@@ -37,8 +44,25 @@ jobs:
           USE_TF: "0"
         run: python tests/test_imports.py
 
-      - name: Pipeline integration tests
+      - name: Test suite
         env:
           TRANSFORMERS_NO_TF: "1"
           USE_TF: "0"
-        run: python tests/test_pipeline.py
+        run: pytest tests -q
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
+      - name: Install from wheel and run CLI
+        run: |
+          pip install dist/*.whl
+          memorylens --help

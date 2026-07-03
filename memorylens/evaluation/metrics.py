@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Dict, List, Optional
-from memory.base import BaseMemory
-from simulator.facts import Fact
+from memorylens.memory.base import BaseMemory
+from memorylens.simulator.facts import Fact
 
 if TYPE_CHECKING:
-    from utils.providers import LLMProvider
+    from memorylens.utils.providers import LLMProvider
 
 
 def recall_at_t(memory: BaseMemory, fact: Fact, current_turn: int) -> Dict:
@@ -51,6 +51,35 @@ def temporal_drift_score(memory: BaseMemory, fact: Fact, current_turn: int) -> D
         "drift": drift,
         "old_hits": old_hits,
         "new_hits": new_hits,
+        "applicable": True,
+    }
+
+
+def contradiction_score(memory: BaseMemory, fact: Fact, current_turn: int) -> Dict:
+    """
+    Contradiction — after a fact update, does the retrieved context surface
+    BOTH the old and the new value at once?
+
+    A context containing both "Bangalore" and "Mumbai" for the same fact key
+    forces the downstream LLM to arbitrate between conflicting values — a
+    distinct failure mode from drift (which measures stale-only retrieval).
+
+    Returns contradiction ∈ {0.0, 1.0}; applicable only after fact.updated_at.
+    """
+    if not fact.updated_at or current_turn < fact.updated_at:
+        return {"contradiction": 0.0, "applicable": False}
+
+    context = memory.get_context(fact.query_text(), current_turn)
+    old_val = fact.value.lower()
+    new_val = (fact.updated_value or "").lower()
+
+    old_present = any(old_val in m.get("content", "").lower() for m in context)
+    new_present = any(new_val in m.get("content", "").lower() for m in context)
+
+    return {
+        "contradiction": 1.0 if (old_present and new_present) else 0.0,
+        "old_present": old_present,
+        "new_present": new_present,
         "applicable": True,
     }
 
@@ -170,7 +199,7 @@ def llm_recall_at_t(
       judge_verdict : str    — 'correct' | 'wrong' | 'error'
       tokens        : int    — context token estimate
     """
-    from utils.providers import _clean_messages
+    from memorylens.utils.providers import _clean_messages
 
     context = memory.get_context(fact.query_text(), current_turn)
     expected = fact.current_value(current_turn)
@@ -229,7 +258,7 @@ def llm_temporal_drift(
 
     Only meaningful after fact.updated_at has passed.
     """
-    from utils.providers import _clean_messages
+    from memorylens.utils.providers import _clean_messages
 
     if not fact.updated_at or current_turn < fact.updated_at:
         return {"llm_drift": 0.0, "applicable": False}

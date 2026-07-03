@@ -3,7 +3,7 @@ from typing import List, Dict, Optional, Callable, Tuple
 import numpy as np
 from .base import BaseMemory
 from .decay import get_decay_fn, decay_ebbinghaus
-from utils.embeddings import embed, top_k_indices
+from memorylens.utils.embeddings import embed, top_k_indices
 
 
 def _extractive_summary(messages: List[Dict], max_chars: int = 400) -> str:
@@ -25,7 +25,7 @@ def _extractive_summary(messages: List[Dict], max_chars: int = 400) -> str:
 
     lines = update_lines + injection_lines
     summary = " | ".join(lines)
-    return summary[:max_chars] if summary else "No key facts."
+    return summary[:max_chars]
 
 
 def _parse_update(content: str) -> Optional[Tuple[str, str]]:
@@ -140,7 +140,8 @@ class CascadingTemporalMemory(BaseMemory):
         self.warm_embs = self.warm_embs[-self.warm_size :]
 
         summary = _extractive_summary(overflow)
-        self.cold.append(summary)
+        if summary:
+            self.cold.append(summary)
 
         # Patch all cold entries with every known fact update so no stale
         # values survive compression into the cold tier.
@@ -148,8 +149,10 @@ class CascadingTemporalMemory(BaseMemory):
             self.cold = _patch_cold_with_update(self.cold, key_name, new_val)
 
         if len(self.cold) > self.cold_max:
-            # Merge oldest two; newer content first so it survives truncation
-            merged = self.cold[1] + " | " + self.cold[0]
+            # Merge oldest-first: early facts stay at the head and survive
+            # truncation. Stale values are already rewritten in place by
+            # _patch_cold_with_update, so newer text needs no priority here.
+            merged = self.cold[0] + " | " + self.cold[1]
             self.cold = [merged[:600]] + self.cold[2:]
 
     def get_context(self, query: str, current_turn: int) -> List[Dict]:

@@ -3,7 +3,7 @@
 One-shot migration: import existing JSON log files into SQLite.
 
 Usage:
-    python utils/migrate_legacy_logs.py
+    python -m memorylens.utils.migrate_legacy_logs
 
 Scans experiment_logs/*.json, parses each file, and inserts
 into the SQLite database at experiment_logs/memorylens.db.
@@ -15,12 +15,7 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-from utils.storage import Storage
-
-
-LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "experiment_logs")
+from memorylens.utils.storage import Storage, LOG_DIR
 
 
 def migrate() -> int:

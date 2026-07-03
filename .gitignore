@@ -22,3 +22,6 @@ results.json
 experiment_logs/memorylens.db
 *.log
 .streamlit/secrets.toml
+benchmark_v04.json
+demo_venv/
+benchmark_v04_200.json

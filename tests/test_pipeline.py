@@ -486,6 +486,9 @@ def test_api_benchmark_lifecycle():
     assert "medical" in scenario_names
 
     assert client.post("/v1/benchmarks", json={"backends": ["bogus"]}).status_code == 422
+    assert client.post("/v1/benchmarks", json={
+        "turns": 10, "checkpoints": [100], "backends": ["naive"],
+    }).status_code == 422
 
     resp = client.post("/v1/benchmarks", json={
         "turns": 10, "checkpoints": [10], "backends": ["naive"],

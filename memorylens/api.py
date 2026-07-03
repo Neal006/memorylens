@@ -53,6 +53,11 @@ def _validate(req: BenchmarkRequest) -> None:
         raise HTTPException(422, f"Unknown decay '{req.decay}'. Valid: {list(DECAY_REGISTRY)}")
     if not req.checkpoints:
         raise HTTPException(422, "checkpoints must not be empty")
+    out_of_range = [c for c in req.checkpoints if c < 1 or c > req.turns]
+    if out_of_range:
+        raise HTTPException(
+            422, f"checkpoints {out_of_range} outside run horizon 1..{req.turns}"
+        )
 
 
 def _run_job(job_id: str, req: BenchmarkRequest) -> None:

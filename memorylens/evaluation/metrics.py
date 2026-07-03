@@ -31,7 +31,7 @@ def temporal_drift_score(memory: BaseMemory, fact: Fact, current_turn: int) -> D
     Returns drift ∈ [0, 1]: 1 = context only shows stale data, 0 = fully updated.
     Only applicable to facts that have an update.
     """
-    if not fact.updated_at or current_turn < fact.updated_at:
+    if fact.updated_at is None or not fact.updated_value or current_turn < fact.updated_at:
         return {"drift": 0.0, "applicable": False}
 
     context = memory.get_context(fact.query_text(), current_turn)
@@ -66,7 +66,7 @@ def contradiction_score(memory: BaseMemory, fact: Fact, current_turn: int) -> Di
 
     Returns contradiction ∈ {0.0, 1.0}; applicable only after fact.updated_at.
     """
-    if not fact.updated_at or current_turn < fact.updated_at:
+    if fact.updated_at is None or not fact.updated_value or current_turn < fact.updated_at:
         return {"contradiction": 0.0, "applicable": False}
 
     context = memory.get_context(fact.query_text(), current_turn)
@@ -260,7 +260,7 @@ def llm_temporal_drift(
     """
     from memorylens.utils.providers import _clean_messages
 
-    if not fact.updated_at or current_turn < fact.updated_at:
+    if fact.updated_at is None or not fact.updated_value or current_turn < fact.updated_at:
         return {"llm_drift": 0.0, "applicable": False}
 
     context = memory.get_context(fact.query_text(), current_turn)

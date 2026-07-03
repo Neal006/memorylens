@@ -171,7 +171,7 @@ def run_benchmark(
 
                 drift_facts = [
                     f for f in active_facts
-                    if f.updated_at and f.updated_at <= turn
+                    if f.updated_at is not None and f.updated_value and f.updated_at <= turn
                 ]
                 avg_drift = (
                     sum(temporal_drift_score(memory, f, turn)["drift"] for f in drift_facts)

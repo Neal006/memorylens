@@ -1,14 +1,19 @@
 import os
 import time
-from typing import Optional
-from groq import Groq
 
-_client: Optional[Groq] = None
+_client = None
 
 
-def get_client() -> Groq:
+def get_client():
     global _client
     if _client is None:
+        try:
+            from groq import Groq
+        except ImportError as e:
+            raise ImportError(
+                'The groq package is required for LLM compression. '
+                'Install it with: pip install "memorylens[groq]"'
+            ) from e
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
             raise EnvironmentError("GROQ_API_KEY not set")

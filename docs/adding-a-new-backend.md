@@ -9,7 +9,7 @@ This guide walks through implementing a custom LLM memory backend and benchmarki
 Every memory backend in MemoryLens inherits from `BaseMemory`:
 
 ```python
-# memory/base.py
+# memorylens/memory/base.py
 class BaseMemory(ABC):
     name: str = "base"   # used in --backends flag and results tables
 
@@ -42,7 +42,7 @@ class BaseMemory(ABC):
 
 As a concrete example, let's implement an entity-extraction memory backend that stores named entities separately from conversation flow.
 
-### Step 1 — Create `memory/entity.py`
+### Step 1 — Create `memorylens/memory/entity.py`
 
 ```python
 from typing import List, Dict
@@ -102,10 +102,10 @@ class EntityMemory(BaseMemory):
         self.recent = []
 ```
 
-### Step 2 — Register in `evaluation/benchmark.py`
+### Step 2 — Register in `memorylens/evaluation/benchmark.py`
 
 ```python
-from memory.entity import EntityMemory
+from memorylens.memory.entity import EntityMemory
 
 def _make_memory(name: str, decay: str = "ebbinghaus") -> BaseMemory:
     # ... existing cases ...
@@ -121,7 +121,7 @@ Also add `"entity"` to `VALID_BACKENDS`.
 ```python
 # tests/test_pipeline.py
 def test_entity_recall_early():
-    from memory.entity import EntityMemory
+    from memorylens.memory.entity import EntityMemory
     mem = EntityMemory()
     _populate(mem, BENCHMARK_FACTS, 15)
     active = [f for f in BENCHMARK_FACTS if f.injected_at < 15]
@@ -141,8 +141,8 @@ python main.py --seeds 5 --backends naive rag entity cascading
 ### Step 5 — Open a PR
 
 Include:
-- `memory/entity.py` — the backend implementation
-- Updated `evaluation/benchmark.py` — registration
+- `memorylens/memory/entity.py` — the backend implementation
+- Updated `memorylens/evaluation/benchmark.py` — registration
 - Test in `tests/test_pipeline.py`
 - Entry in `CHANGELOG.md` under `[Unreleased]`
 
@@ -152,11 +152,12 @@ Include:
 
 | Backend | Strategy | Hypothesis to test |
 |---------|----------|-------------------|
-| `entity` | Named-entity extraction into a key-value store | Does structured storage beat unstructured retrieval? |
-| `qdrant` | Production vector DB (Qdrant) | Does a real vector DB beat NumPy cosine at scale? |
+| `entity` | Named-entity extraction into a key-value store | Shipped: `memorylens/memory/entity.py` |
+| `graph` | Knowledge graph (entities + relationships) | Shipped: `memorylens/memory/graph.py` — multi-hop edges still open |
+| `faiss` | FAISS vector index | Shipped: `memorylens/memory/vector_faiss.py` (optional dep) |
+| `qdrant` | Production vector DB (Qdrant) | Does a hosted vector DB change results at 10K+ turns? |
 | `redis` | Persistent Redis-backed storage | Does persistence across sessions affect recall? |
 | `memgpt_style` | Virtual paging between in-context and external | Does OS-style memory management beat Cascading? |
-| `graph` | Knowledge graph (entities + relationships) | Does structured relationships help with multi-hop facts? |
 | `sliding_window` | Fixed K-message window | What's the optimal window size? |
 | `importance_weighted` | Keep messages by semantic importance score | Does importance sampling beat recency? |
 

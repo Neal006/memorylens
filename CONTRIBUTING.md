@@ -44,8 +44,8 @@ python -m venv .venv
 source .venv/bin/activate        # Linux / macOS
 .venv\Scripts\activate           # Windows
 
-# 3. Install in editable mode with dev dependencies:
-pip install -e ".[dev]"
+# 3. Install in editable mode with dev + server dependencies:
+pip install -e ".[server,dev]"
 
 # 4. Copy the environment file (API key is optional):
 cp .env.example .env
@@ -73,8 +73,9 @@ Simulator  →  Memory Backend  →  Evaluator  →  Dashboard
 
 Each layer is independently extensible. You can add a backend without touching the evaluator, and add a metric without touching the dashboard.
 
-**Current backends:** `naive` · `rag` · `rag_chunked` · `cascading` · `summary`  
-**Current metrics:** Recall@T · Precision@K · Temporal Drift · Memory Noise Ratio · Cascade Efficiency  
+**Current backends:** `naive` · `rag` · `rag_chunked` · `cascading` · `summary` · `entity` · `graph` · `faiss`  
+**Current metrics:** Recall@T · Precision@K · Temporal Drift · Contradiction · Memory Noise Ratio · Cascade Efficiency  
+**Current scenarios:** `default` · `edtech` · `support` · `medical`  
 **LLM eval providers:** Groq · OpenAI · Anthropic · OpenRouter · Ollama
 
 Set `TRANSFORMERS_NO_TF=1` and `USE_TF=0` if you have TensorFlow installed alongside PyTorch.
@@ -84,33 +85,39 @@ Set `TRANSFORMERS_NO_TF=1` and `USE_TF=0` if you have TensorFlow installed along
 ## Project layout
 
 ```
-memorylens/
-├── memory/            Memory backend implementations — add new backends here
-│   ├── base.py        Abstract BaseMemory interface (3 methods every backend must implement)
-│   ├── naive.py       Naive full-history backend (simplest example)
-│   ├── rag.py         Semantic retrieval backend (sentence-transformers)
-│   ├── cascading.py   Three-tier hot/warm/cold with Ebbinghaus temporal decay
-│   ├── entity.py      Structured key-value entity extraction (great reference for new backends)
-│   └── decay.py       Temporal decay functions (ebbinghaus, exponential, linear)
+memorylens/                  The installable package (pip install memorylens)
+├── memory/                  Memory backend implementations — add new backends here
+│   ├── base.py              Abstract BaseMemory interface (3 methods every backend must implement)
+│   ├── naive.py             Naive full-history backend (simplest example)
+│   ├── rag.py               Semantic retrieval backend (sentence-transformers)
+│   ├── rag_chunked.py       Chunked + bounded-index RAG (production-realistic)
+│   ├── cascading.py         Three-tier hot/warm/cold with Ebbinghaus temporal decay
+│   ├── summary.py           Rolling-summary compression backend
+│   ├── entity.py            Structured key-value entity extraction (great reference for new backends)
+│   ├── graph.py             NetworkX knowledge-graph backend
+│   ├── vector_faiss.py      FAISS vector index backend (optional dep: memorylens[faiss])
+│   └── decay.py             Temporal decay functions (ebbinghaus, exponential, linear)
 ├── evaluation/
-│   ├── metrics.py     All benchmark metrics — add new metrics here
-│   ├── benchmark.py   Benchmark orchestrator — registers backends, runs eval loop
-│   ├── stats.py       Multi-seed aggregation and forgetting-curve fitting
-│   └── logger.py      Experiment logging (JSON + CSV)
+│   ├── metrics.py           All benchmark metrics — add new metrics here
+│   ├── benchmark.py         Benchmark orchestrator — registers backends, runs eval loop
+│   ├── stats.py             Multi-seed aggregation and forgetting-curve fitting
+│   └── logger.py            Experiment logging (JSON + CSV)
 ├── simulator/
-│   ├── facts.py       Fact dataclass and BENCHMARK_FACTS
-│   ├── conversation.py  generate_conversation() — builds the simulated chat
-│   ├── personas.py    5 diverse personas for multi-seed runs
-│   └── scenarios/     Domain-specific scenarios (edtech, customer_support, medical…)
+│   ├── facts.py             Fact dataclass and BENCHMARK_FACTS
+│   ├── conversation.py      generate_conversation() — builds the simulated chat
+│   ├── personas.py          5 diverse personas for multi-seed runs
+│   └── scenarios/           Scenario registry (default, edtech, support, medical)
 ├── utils/
-│   ├── embeddings.py  Local sentence-transformer embeddings (no API key needed)
-│   └── providers.py   LLM provider abstraction (Groq, OpenAI, Anthropic, Ollama…)
-├── tests/             Integration tests — run with: pytest tests/ -v
-├── dashboard.py       Streamlit visualisation dashboard
-├── main.py            CLI entry point
-├── quick_demo.py      Zero-API-key demo
-├── api/               FastAPI REST server (planned — see Issue #25)
-└── docs/              Guides and comparison docs
+│   ├── embeddings.py        Local sentence-transformer embeddings (no API key needed)
+│   └── providers.py         LLM provider abstraction (Groq, OpenAI, Anthropic, Ollama…)
+├── api.py                   FastAPI REST server (optional dep: memorylens[server])
+└── cli.py                   CLI entry point (`memorylens` command)
+
+tests/                       Integration tests — run with: pytest tests/ -v
+dashboard.py                 Streamlit visualisation dashboard
+main.py                      Backward-compatible wrapper around memorylens.cli
+quick_demo.py                Zero-API-key demo
+docs/                        Guides and comparison docs
 ```
 
 ---
@@ -121,7 +128,7 @@ The most impactful contribution type. Full guide with a worked EntityMemory exam
 
 **Quick version — 4 steps:**
 
-**Step 1 — Create `memory/your_backend.py`:**
+**Step 1 — Create `memorylens/memory/your_backend.py`:**
 
 ```python
 from typing import List, Dict
@@ -145,10 +152,10 @@ class YourMemory(BaseMemory):
         pass  # clear all state
 ```
 
-**Step 2 — Register in `evaluation/benchmark.py`:**
+**Step 2 — Register in `memorylens/evaluation/benchmark.py`:**
 
 ```python
-from memory.your_backend import YourMemory
+from memorylens.memory.your_backend import YourMemory
 
 def _make_memory(name: str, decay: str = "ebbinghaus") -> BaseMemory:
     if name == "your_backend":
@@ -162,7 +169,7 @@ Add `"your_backend"` to `VALID_BACKENDS`.
 
 ```python
 def test_your_backend_recall_early():
-    from memory.your_backend import YourMemory
+    from memorylens.memory.your_backend import YourMemory
     mem = YourMemory()
     _populate(mem, BENCHMARK_FACTS, 15)
     active = [f for f in BENCHMARK_FACTS if f.injected_at < 15]
@@ -184,7 +191,7 @@ Open a PR with the three files changed. A maintainer will review within 48 hours
 
 ## How to add a new metric
 
-All metrics live in `evaluation/metrics.py`. Each is a plain function — no classes.
+All metrics live in `memorylens/evaluation/metrics.py`. Each is a plain function — no classes.
 
 ```python
 def your_metric(memory: BaseMemory, facts: List[Fact], current_turn: int) -> float:
@@ -196,35 +203,41 @@ def your_metric(memory: BaseMemory, facts: List[Fact], current_turn: int) -> flo
     return score
 ```
 
-Wire it into the `CheckpointResult` dataclass in `evaluation/benchmark.py` and add a chart in `dashboard.py`.
+Wire it into the `CheckpointResult` dataclass in `memorylens/evaluation/benchmark.py` and add a chart in `dashboard.py`. `contradiction_score` is the most recent worked example — trace it through metrics.py → benchmark.py → dashboard.py.
 
 ---
 
 ## How to add a new domain scenario
 
-Copy `simulator/scenarios/edtech.py` as a starting template:
+Copy `memorylens/simulator/scenarios/medical.py` as a starting template:
 
 ```python
-# simulator/scenarios/your_scenario.py
-from simulator.facts import Fact
+# memorylens/simulator/scenarios/your_scenario.py
+from memorylens.simulator.facts import Fact
+from memorylens.simulator.scenarios.base import Scenario
 
-YOUR_FACTS = [
-    Fact("name",  "Alice Chen",    injected_at=0),
-    Fact("role",  "developer",     injected_at=2),
-    Fact("city",  "Singapore",     injected_at=4, updated_at=40, updated_value="Sydney"),
-    # 8 facts total; at least 2 should have updated_at set
+YOUR_PERSONA_POOL = [
+    [
+        Fact("name",  "Alice Chen",  injected_at=0),
+        Fact("role",  "developer",   injected_at=2),
+        Fact("city",  "Singapore",   injected_at=4, updated_at=40, updated_value="Sydney"),
+        # 8 facts total; at least 2 should have updated_at set.
+        # Old and new values must not be substrings of each other.
+    ],
+    # ... 2+ more personas with the same fact keys
 ]
 
-YOUR_PERSONA_POOL = [YOUR_FACTS, ...]  # 5 different persona fact-lists
-YOUR_FILLER_TURNS = [                  # 20+ domain-specific questions
-    "Can you help me with...",
-    ...
-]
+YOUR_FILLER_TURNS = ["Can you help me with...", ...]  # 20 domain questions
+
+YOUR_SCENARIO = Scenario(
+    name="your_scenario",
+    description="One-line description shown by --list-scenarios.",
+    persona_pool=YOUR_PERSONA_POOL,
+    filler_turns=YOUR_FILLER_TURNS,
+)
 ```
 
-Then add a `--scenario your_scenario` case to `main.py` (copy the existing `edtech` block exactly).
-
-**Open scenarios:** #23 (CustomerSupport), #24 (Medical) — good first contributions!
+Then register it in the `SCENARIOS` dict in `memorylens/simulator/scenarios/__init__.py` — the CLI (`--scenario your_scenario`), the API, and the tests pick it up automatically.
 
 ---
 
@@ -248,7 +261,7 @@ python main.py --backends naive rag cascading --turns 50
 python main.py --seeds 5
 ```
 
-CI runs `pytest tests/` on Python 3.10 and 3.11 on every push. All tests must pass without an API key.
+CI runs the suite on Python 3.10–3.13 (Linux) plus Windows and macOS on every push, and builds + validates the PyPI package. All tests must pass without an API key.
 
 ---
 
@@ -281,7 +294,7 @@ refactor: extract _extract_entity() helper from EntityMemory
 - [ ] Docstrings added on all new public functions/classes
 - [ ] Type hints used on all new function signatures
 - [ ] If adding a backend: registered in `VALID_BACKENDS` and `_make_memory()`
-- [ ] If adding a scenario: `--scenario` flag added to `main.py`
+- [ ] If adding a scenario: registered in the `SCENARIOS` dict in `memorylens/simulator/scenarios/__init__.py`
 - [ ] README updated if new CLI flags or user-facing features were added
 - [ ] No API key required to run any new tests
 
@@ -304,7 +317,7 @@ refactor: extract _extract_entity() helper from EntityMemory
 
 - **Stuck on an issue?** Comment on it — maintainers respond promptly
 - **General questions?** Open a [Discussion](https://github.com/Neal006/memorylens/discussions)
-- **Best reference for new backends:** `memory/entity.py` — the shortest, cleanest example
+- **Best reference for new backends:** `memorylens/memory/entity.py` — the shortest, cleanest example
 - **CI failing?** Run `pytest tests/ -v` locally first; the error message is usually self-explanatory
 
 Welcome aboard — we're glad you're here!

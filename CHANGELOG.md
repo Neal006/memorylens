@@ -5,7 +5,53 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [0.4.0] — 2026-07-04
+
+### Added
+- **PyPI-ready packaging** — all code now lives under a single `memorylens` package
+  (`memorylens.memory`, `memorylens.simulator`, `memorylens.evaluation`, `memorylens.utils`).
+  Fixed an invalid `build-backend` that made the sdist unbuildable, added the
+  `memorylens` console command (`memorylens.cli:main`), and split dependencies into a
+  lean core plus `[dashboard]`, `[server]`, `[faiss]`, `[groq]`, `[openai]`,
+  `[anthropic]`, `[all]`, `[dev]` extras. `python main.py` still works.
+- **GraphMemory** (`graph`) — NetworkX knowledge-graph backend; fact updates replace
+  edges in place so stale values cannot survive (#20)
+- **FAISSMemory** (`faiss`) — FAISS `IndexFlatIP` vector backend as an optional extra (#14)
+- **contradiction_score** — flags contexts that surface both the old and new value of an
+  updated fact; wired into checkpoints, CSV logs, and the dashboard (#21)
+- **Scenario framework** — `Scenario` dataclass + registry (#22) with three domain
+  scenarios: `edtech` (#18), `support` (#23), `medical` (#24); `--scenario` and
+  `--list-scenarios` CLI flags
+- **FastAPI server** — `uvicorn memorylens.api:app`; job-based POST `/v1/benchmarks`,
+  GET `/v1/backends`, `/v1/scenarios`, `/health` (#25)
+- **Dashboard Run History tab** — overlay Recall@T curves from past `experiment_logs/`
+  runs and compare final metrics side-by-side (#27)
+- 16 new integration tests (39 total): GraphMemory, contradiction_score, scenarios,
+  FAISS, API lifecycle, and cascading regressions (#31)
+- CI matrix expanded to Python 3.10–3.13 on Linux plus Windows and macOS, with a
+  package build + `twine check` + wheel-install job (#30)
+
+### Fixed
+- **Cascading cold-tier recall regression** — the newest-first cold-summary merge
+  introduced with the drift fix truncated away the oldest fact summaries, collapsing
+  cascading recall at T=100 from ~75% to ~8%. Merging is oldest-first again (stale
+  values are already rewritten in place by the update patcher) and empty "No key
+  facts." summaries are no longer appended to the cold tier. Regression tests added.
+- Experiment CSV logger crashed on every run since the `has_llm_eval` flag was added
+  (a bool was indexed as a dict); it now skips non-backend keys and rotates the CSV
+  when the metric schema changes
+- Benchmark results in the README were stale and did not reproduce; all tables are
+  regenerated from the current code
+
+### Removed
+- Dead references to an unpublished research paper (`paper/memorylens_paper.md` never
+  existed in the repository); unverifiable "the only framework" marketing claims;
+  fabricated ₹-cost projections in the dashboard (replaced with a clearly labelled
+  illustrative $-projection)
+
+---
+
+## [0.3.0] — 2026-05-24
 
 ### Added
 
@@ -53,8 +99,7 @@ Three research-quality gaps identified and documented across README, docs/, and 
   - Shows realistic 85–87% recall at T=100 vs ideal RAG's 100% — contrast is the key finding
 - Registered as `rag_chunked` backend in benchmark runner and CLI
 
-**Fix 4 — Research paper**
-- `paper/memorylens_paper.md`: 6-section academic paper with proper citations (Ebbinghaus 1885, MemGPT, RAGAS, Jost 1897, Atkinson & Shiffrin 1968), ablation tables, multi-seed results tables, and related work comparison against RAGAS, TruLens, DeepEval, MemGPT, A-MEM
+**Fix 4 — Research paper** *(never merged into the repository; stale references to it were removed in 0.4.0)*
 
 **Tests**: 10 new tests covering decay functions, ChunkedRAGMemory, stats aggregation, and persona pool structure (24 total, all passing)
 

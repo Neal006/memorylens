@@ -2,421 +2,302 @@
 
 # 🔭 MemoryLens
 
-### The Open-Source Benchmark for LLM Memory Decay
+### Measure how your AI's memory forgets
 
-**The only evaluation framework that measures how AI memory systems forget — across architectures, over time, with statistical rigor.**
+**An open-source benchmark for LLM memory decay — 8 memory architectures, 6 metrics, 4 domain scenarios, statistical rigor, zero API keys required.**
 
 [![CI](https://github.com/Neal006/memorylens/actions/workflows/ci.yml/badge.svg)](https://github.com/Neal006/memorylens/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?logo=python&logoColor=white)](https://www.python.org/)
+[![PyPI](https://img.shields.io/pypi/v/memorylens)](https://pypi.org/project/memorylens/)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776ab?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
-[![Stars](https://img.shields.io/github/stars/Neal006/memorylens?style=social)](https://github.com/Neal006/memorylens/stargazers)
-[![Forks](https://img.shields.io/github/forks/Neal006/memorylens?style=social)](https://github.com/Neal006/memorylens/network/members)
 
-[**Quick Start**](#quick-start) · [**Results**](#benchmark-results) · [**How It Works**](#how-it-works) · [**vs Other Tools**](#how-memorylens-compares)
+[**Install**](#install) · [**Quick Start**](#quick-start) · [**Results**](#benchmark-results) · [**How It Works**](#how-it-works) · [**Contributing**](#contributing)
 
 </div>
 
 ---
 
-## The Problem No One Is Measuring
+## The Problem
 
-Every LLM application that runs multi-turn conversations has a memory problem. Developers pick a memory strategy — usually "dump everything in the context and hope" — and never measure what actually gets remembered.
+Every LLM application that runs multi-turn conversations has a memory strategy — usually "keep everything in context and hope." Almost nobody measures what that strategy actually remembers after 50, 100, or 200 turns.
 
-**MemoryLens is the benchmark that measures LLM memory decay.**
+MemoryLens answers three questions:
 
-It answers three questions no other tool asks:
+- **How much does an AI still recall** after N conversation turns — and at what token cost?
+- **Which memory architecture** (full history, RAG, tiered compression, entity store, knowledge graph…) retains facts most efficiently?
+- **When a user updates a fact** ("I moved to Mumbai"), does the memory surface the new value, the stale one — or contradict itself with both?
 
-- **How much does an AI actually remember** after 50 conversation turns? After 100?
-- **Which memory architecture retains facts most efficiently** at a given token budget?
-- **When a user updates a fact** ("I moved to Mumbai"), does the AI still give the old answer?
+Every core metric is content-based and deterministic: no API key, fully reproducible. Add any LLM key and a two-stage answer+judge pipeline measures what the model *actually* answers.
 
 ---
 
-## Key Results (multi-seed, n=5 personas, mean ± std)
+## Install
 
-Run `python main.py` and get statistically valid results like these — **no API key needed:**
+```bash
+pip install memorylens
+```
 
-| Backend | Recall @ T=100 | Tokens/Query | Cascade Efficiency |
-|---------|:--------------:|:------------:|:-----------------:|
-| Naive (full history eviction) | 62.5 ± 0.0% | 1,189 | 1.0× baseline |
-| Ideal RAG (unbounded, whole-msg) | 100.0 ± 0.0% | 45 | — |
-| **Chunked RAG** (production-realistic) | **85.0 ± 3.8%** | **38** | — |
-| **Cascading Temporal** (Ebbinghaus decay) | **87.5 ± 0.0%** | **218** | **5.67×** |
-| SummaryMemory (extractive mode) | 100.0 ± 0.0% | 318 | — |
+| Extra | Installs | For |
+|-------|----------|-----|
+| `memorylens[dashboard]` | streamlit, plotly, pandas | Interactive dashboard |
+| `memorylens[server]` | fastapi, uvicorn | REST API |
+| `memorylens[faiss]` | faiss-cpu | FAISS vector backend |
+| `memorylens[groq]` / `[openai]` / `[anthropic]` | provider SDK | LLM evaluation mode |
+| `memorylens[all]` | everything above | — |
 
-> **Why ± 0.0% std for some backends?** Naive and Cascading make eviction and decay decisions based on *position and elapsed time*, not on the content of each persona's values. Since all 5 personas share the same fact injection timing (T=0,1,2,3,4,5,7,9) and update timing (T=40,60), these backends produce identical results across personas — real variance requires varying injection timing, which is a [known v0.4 improvement](#roadmap). Chunked RAG shows real variance (±3.8%) because cosine similarity scoring depends on the actual text of each persona's facts.
-
-> **Why does SummaryMemory show 100% recall?** In zero-API-key mode, SummaryMemory uses *extractive* compression: it keeps only messages containing personal-fact keywords (`name`, `city`, `age`, etc.) verbatim. This is effectively selective full history — fact values are never paraphrased or lost, so substring match recall is always 100%. Set any LLM provider key and compression becomes abstractive; paraphrased facts may not match the substring check, which is the honest production measurement. See [How It Works](#how-it-works) for the full tradeoff.
-
-> **Chunked RAG vs Ideal RAG** shows the gap between a theoretical upper bound and a production-realistic retrieval system. The 15pp difference is the cost of chunking + bounded index eviction. The **Cascading Temporal** backend delivers **5.67× more recall per token** than naive truncation using an Ebbinghaus-grounded forgetting curve.
+Python 3.10–3.13 · Linux, macOS, Windows (all tested in CI).
 
 ---
 
 ## Quick Start
 
-### Zero API key — runs in under 60 seconds
+### CLI — results in under a minute, no API key
 
 ```bash
-git clone https://github.com/Neal006/memorylens.git
-cd memorylens
-pip install -r requirements.txt
-python main.py
+memorylens                        # 100-turn benchmark, 3 backends
+memorylens --seeds 5              # multi-seed: mean ± std across 5 personas
+memorylens --scenario medical     # domain scenarios: default | edtech | support | medical
+memorylens --backends naive rag_chunked cascading graph
+memorylens --seeds 5 --fit-curves # fit Ebbinghaus + exponential forgetting curves
+memorylens --llm --provider groq  # real answer+judge LLM evaluation
 ```
 
-### Multi-seed benchmark (statistically valid, mean ± std)
+### Python API
+
+```python
+from memorylens import run_benchmark, results_to_display_dict
+
+raw = run_benchmark(total_turns=100, backends=["naive", "rag", "cascading"])
+results = results_to_display_dict(raw)
+print(results["cascading"]["recall"])   # recall at each checkpoint
+```
+
+### Dashboard and REST API
 
 ```bash
-python main.py --seeds 5
+pip install "memorylens[dashboard]"
+streamlit run dashboard.py            # decay curves, run history, cost projection
+
+pip install "memorylens[server]"
+uvicorn memorylens.api:app            # POST /v1/benchmarks → job id → poll results
 ```
-
-### Live LLM evaluation (answer + judge pipeline)
-
-```bash
-cp .env.example .env
-# Add any one key: GROQ_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
-python main.py --llm --provider groq
-```
-
-### Decay formula ablation (Ebbinghaus vs exponential vs linear)
-
-```bash
-python main.py --decay ebbinghaus    # default — Ebbinghaus (1885)
-python main.py --decay exponential   # Jost (1897)
-python main.py --decay linear        # Wickelgren (1972)
-```
-
-### Realistic chunked RAG vs ideal RAG
-
-```bash
-python main.py --backends naive rag rag_chunked cascading
-```
-
-### Interactive dashboard
-
-```bash
-streamlit run dashboard.py
-# Select a provider in the sidebar for real LLM recall vs content recall gap charts
-```
-
----
-
-## How It Works
-
-MemoryLens has three layers:
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│  LAYER 1 — SIMULATOR                                                    │
-│  Injects personal facts at known turns, fires filler queries in between │
-│  Facts can be updated mid-conversation to test temporal drift           │
-│                                                                         │
-│  T=0  "My name is Arjun Sharma."                                        │
-│  T=1  "My city is Bangalore."                                           │
-│  T=40 "My city has changed to Mumbai."  ← update event                 │
-│  T=2–99: generic filler questions (noise)                               │
-└──────────────────────────────┬─────────────────────────────────────────┘
-                               │
-                               ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│  LAYER 2 — MEMORY BACKENDS (5 implementations)                          │
-│                                                                         │
-│  naive       Full history, evict oldest at 1,200-token budget           │
-│  rag         Embed every message, retrieve top-K by cosine similarity   │
-│  rag_chunked Chunked + bounded index (production-realistic)             │
-│  cascading   Hot/Warm/Cold tiers with Ebbinghaus temporal decay         │
-│  summary     Rolling LLM-generated (or extractive) compression          │
-└──────────────────────────────┬─────────────────────────────────────────┘
-                               │
-                               ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│  LAYER 3 — EVALUATOR (5 metrics, dual mode)                             │
-│                                                                         │
-│  Content mode (no API key): substring match on retrieved chunks         │
-│  LLM mode (any provider):   answer+judge pipeline — did the LLM         │
-│                             actually answer correctly?                  │
-│                             Gap = content recall − LLM recall           │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-### The 5 Evaluation Metrics
-
-| Metric | What It Measures | Formula |
-|--------|-----------------|---------|
-| **Recall@T** | Is the correct fact value in retrieved context at turn T? | `expected_value ∈ context` |
-| **Precision@K** | Of K retrieved chunks, how many contain a real fact? | `relevant_chunks / K` |
-| **Temporal Drift** | After an update, what fraction of retrieved context still contains the stale value? (retrieval-layer proxy — see note) | `old_hits / (old + new hits)` |
-| **Memory Noise Ratio** | What fraction of retrieved context is irrelevant? | `1 − relevant / total` |
-| **Cascade Efficiency** | Recall-per-token ratio vs naive baseline | `(cascading r/t) / (naive r/t)` |
-
-All five metrics are **content-based and deterministic** — no LLM call, fully reproducible.
-
-> **Temporal Drift is a worst-case proxy.** It measures stale-data *contamination in the retrieval layer*, not whether the LLM actually answers with the stale value. If a backend retrieves both "Bangalore" and "Mumbai", drift = 0.5 — but an LLM given both values would likely pick the correct one. This means content drift *overestimates* the real problem. For behavioral measurement (does the LLM answer with the old or new value?), use LLM mode: `python main.py --llm`, which runs `llm_temporal_drift()` — a two-stage answer+judge pipeline.
-
-### The 4 Temporal Decay Functions
-
-The Cascading backend's warm-tier scoring uses a pluggable forgetting curve:
-
-| Name | Formula | Reference |
-|------|---------|-----------|
-| `ebbinghaus` *(default)* | `e^{-t / sqrt(1+t)}` | Ebbinghaus (1885) |
-| `exponential` | `e^{-k·t/window}` | Jost (1897) |
-| `linear` | `1 − t/window` | Wickelgren (1972) |
-| `default` | `max(0.2, 1 − 0.6·t/w)` | Original heuristic |
-
-The Ebbinghaus curve produces the highest cascade efficiency (5.67×) because it decays slowly at first — preserving recently-injected facts — then asymptotically approaches zero for ancient context.
 
 ---
 
 ## Benchmark Results
 
-### Recall@T decay (mean ± std, n=5 personas)
+All numbers below are reproduced from this exact code (v0.4.0) with:
+`memorylens --seeds 5 --backends naive rag rag_chunked cascading summary entity graph faiss`
 
-| Backend | T=10 | T=25 | T=50 | T=75 | T=100 |
-|---------|:----:|:----:|:----:|:----:|:-----:|
-| Naive | 100±0% | 100±0% | 87.5±0% | 75±0% | 62.5±0% |
-| Ideal RAG | 100±0% | 100±0% | 100±0% | 100±0% | 100±0% |
-| Chunked RAG | 100±0% | 96±2% | 92±3% | 88±4% | 85±4% |
-| Cascading | 100±0% | 100±0% | 87.5±0% | 87.5±0% | 87.5±0% |
-| SummaryMemory *(extractive)* | 100±0% | 100±0% | 100±0% | 100±0% | 100±0% |
+### Recall@T — 100 turns (mean ± std, n=5 personas)
 
-*Std=0% for Naive, Ideal RAG, Cascading, and SummaryMemory because their behavior is determined by injection timing, not content values. Chunked RAG's variance comes from embedding similarity differences across persona values. See the callout above for the full explanation.*
+| Backend | T=10 | T=50 | T=100 | Tokens/query @ T=100 |
+|---------|:----:|:----:|:-----:|:--------------------:|
+| naive (1,200-token budget) | 100% | 100% | **35.0 ± 5.6%** | 1,193 |
+| rag | 100% | 100% | 100% | 67 |
+| rag_chunked | 100% | 100% | 100% | 56 |
+| cascading | 100% | 100% | 100% | 326 |
+| summary *(extractive)* | 100% | 100% | 100% | 356 |
+| entity | 100% | 100% | 100% | 63 |
+| graph | 100% | 100% | 100% | 62 |
+| faiss | 100% | 100% | 100% | 67 |
 
-### Token cost per query @ T=100
+**Read this before quoting numbers.** At 100 turns with 8 templated facts, every retrieval- and extraction-based backend saturates — the differentiation is *token cost at equal recall* (rag_chunked delivers the same recall as naive at ~1/21 the tokens) and naive's collapse once its context budget evicts early turns. Two structural caveats:
 
-| Backend | Tokens/Query | Relative to Naive |
-|---------|:-----------:|:-----------------:|
-| Naive | 1,189 | 1.0× |
-| Ideal RAG | 45 | 0.038× |
-| Chunked RAG | 38 | 0.032× |
-| Cascading | 218 | 0.183× |
-| SummaryMemory | 318 | 0.268× |
+1. **entity / graph exploit the fact templates.** Facts are injected as `"My X is Y"`, which the regex extractors match by construction. Their 100% shows structured stores never lose what they capture — it says nothing about free-form conversation. Harder paraphrased injections are on the [roadmap](ROADMAP.md).
+2. **summary is extractive in zero-key mode** — it keeps fact-bearing lines verbatim, so substring recall is guaranteed. With an LLM key, compression becomes abstractive and honest decay appears.
 
-### Cascade Efficiency (recall/token vs naive, Ebbinghaus decay)
+### Stress test — 200 turns
 
-| T=10 | T=25 | T=50 | T=75 | T=100 |
-|:----:|:----:|:----:|:----:|:-----:|
-| 1.16× | 1.96× | 2.30× | 3.03× | **5.67×** |
+At 200 turns the bounded systems saturate and real decay separates the field
+(`memorylens --turns 200 --checkpoints 10 50 100 150 200 --seeds 5 --backends ...`):
 
-### Decay formula ablation @ T=100
+| Backend | T=100 | T=150 | T=200 | Tokens/query @ T=200 |
+|---------|:-----:|:-----:|:-----:|:--------------------:|
+| naive | 35.0 ± 5.6% | 7.5 ± 6.9% | **7.5 ± 6.9%** | 1,189 |
+| rag_chunked (bounded index) | 100% | 17.5 ± 6.9% | **5.0 ± 6.9%** | 70 |
+| cascading | 100% | 100% | **100%** | 326 |
+| rag · summary · entity · graph · faiss | 100% | 100% | 100% | 62–382 |
 
-| Decay function | Cascade Efficiency | Reference |
-|----------------|:-----------------:|-----------|
-| Ebbinghaus (default) | **5.67×** | Ebbinghaus (1885) |
-| Exponential | 5.12× | Jost (1897) |
-| Linear | 4.89× | Wickelgren (1972) |
-| Original heuristic | 5.45× | Ad-hoc |
+The two production-realistic constraints fail in opposite ways: naive's fixed token budget evicts old turns wholesale, while rag_chunked's bounded FIFO vector index (200 chunks) silently drops the earliest facts even though each query costs only 70 tokens. Cascading survives because its cold tier compresses fact-bearing lines instead of discarding them.
+
+### Temporal drift and contradiction after fact updates
+
+Two facts update mid-conversation (city at T=40, age at T=60). At T=100:
+
+| Backend | Drift (stale-only retrieval) | Contradiction (old + new surfaced) |
+|---------|:---------------------------:|:----------------------------------:|
+| naive | 0.0 | 1.0 — full history keeps both values |
+| cascading | 0.0 | 0.0 — cold summaries patched in place |
+| entity / graph | 0.0 | 0.0 — updates overwrite in place |
+
+> Drift is a retrieval-layer proxy (worst-case bound). For behavioral measurement — does the model *answer* with the stale value — run `memorylens --llm`.
 
 ---
 
-## How MemoryLens Compares
+## How It Works
 
-> Every evaluation framework measures something. MemoryLens is the only one that measures **how memory degrades over conversation turns**.
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  LAYER 1 — SIMULATOR                                                    │
+│  Injects facts at known turns, fires domain filler queries in between   │
+│  Facts can be updated mid-conversation to test drift + contradiction    │
+│                                                                         │
+│  T=0  "My name is Arjun Sharma."                                        │
+│  T=1  "My city is Bangalore."                                           │
+│  T=40 "My city has changed to Mumbai."   ← update event                │
+│  Scenarios: default (tech Q&A) · edtech · support · medical             │
+└──────────────────────────────┬─────────────────────────────────────────┘
+                               ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  LAYER 2 — MEMORY BACKENDS (8 implementations)                          │
+│                                                                         │
+│  naive        Full history, evict oldest at a token budget              │
+│  rag          Embed every message, retrieve top-K (upper bound)         │
+│  rag_chunked  Chunked + bounded FIFO index (production-realistic)       │
+│  cascading    Hot/Warm/Cold tiers with Ebbinghaus temporal decay        │
+│  summary      Rolling compression (LLM or extractive)                   │
+│  entity       Structured key-value fact store                          │
+│  graph        NetworkX knowledge graph, in-place fact updates           │
+│  faiss        FAISS vector index (optional dependency)                  │
+└──────────────────────────────┬─────────────────────────────────────────┘
+                               ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│  LAYER 3 — EVALUATOR (6 metrics, dual mode)                             │
+│                                                                         │
+│  Content mode (no API key): deterministic substring checks              │
+│  LLM mode (any provider):   answer+judge pipeline — did the LLM         │
+│                             actually answer correctly?                  │
+└────────────────────────────────────────────────────────────────────────┘
+```
 
-| Framework | What It Evaluates | Temporal Decay | Multi-Architecture | No-API Mode | Open Source |
-|-----------|------------------|:--------------:|:------------------:|:-----------:|:-----------:|
-| **MemoryLens** | Memory decay over turns | ✅ | ✅ (5 backends) | ✅ | ✅ |
-| [RAGAS](https://github.com/explodinggradients/ragas) | RAG quality (faithfulness, relevance) | ❌ | ❌ | ❌ | ✅ |
-| [TruLens](https://github.com/truera/trulens) | LLM app quality at a single point | ❌ | ❌ | ❌ | ✅ |
-| [DeepEval](https://github.com/confident-ai/deepeval) | LLM answer quality | ❌ | ❌ | Partial | ✅ |
-| [MemGPT](https://github.com/cpacker/MemGPT) | Memory *system* (not evaluator) | N/A | N/A | N/A | ✅ |
-| [LangChain ConversationBuffer](https://python.langchain.com/docs/modules/memory/) | Memory *implementation* | N/A | N/A | N/A | ✅ |
+### The 6 Metrics
 
-**MemoryLens is the only tool that answers: "How much does my AI forget after N conversation turns?"**
+| Metric | What It Measures |
+|--------|-----------------|
+| **Recall@T** | Is the correct current fact value in retrieved context at turn T? |
+| **Precision@K** | Of K retrieved chunks, how many contain a real fact? |
+| **Temporal Drift** | After an update, what fraction of retrieval still carries the stale value? *(worst-case proxy)* |
+| **Contradiction** | Does the context surface both old *and* new values at once, forcing the LLM to arbitrate? |
+| **Memory Noise Ratio** | What fraction of retrieved context is irrelevant to any known fact? |
+| **Cascade Efficiency** | Recall-per-token vs the naive baseline |
+
+### The 4 Temporal Decay Functions
+
+The cascading backend's warm-tier scoring uses a pluggable forgetting curve — compare them with `--decay`:
+
+| Name | Formula | Reference |
+|------|---------|-----------|
+| `ebbinghaus` *(default)* | `e^{-t / (S·√(1+t))}` | Ebbinghaus (1885) |
+| `exponential` | `e^{-k·t/window}` | Jost (1897) |
+| `linear` | `1 − t/window` | Wickelgren (1972) |
+| `default` | `max(0.2, 1 − 0.6·t/w)` | Original heuristic |
+
+`--fit-curves` fits both Ebbinghaus and exponential models to your measured Recall@T series and reports half-life, stability, and R².
 
 ---
 
 ## LLM Provider Support
 
-MemoryLens works **without any API key** for all content-based metrics. Add any one key to unlock the real LLM evaluation pass:
+All content metrics work with **no API key**. Add any one key for the LLM answer+judge pass:
 
 | Provider | Key | Default Model | Free Tier |
 |----------|-----|---------------|-----------|
-| Groq | `GROQ_API_KEY` | llama-3.1-8b-instant | ✅ Yes |
+| Groq | `GROQ_API_KEY` | llama-3.1-8b-instant | ✅ |
 | OpenAI | `OPENAI_API_KEY` | gpt-4o-mini | ❌ |
 | Anthropic | `ANTHROPIC_API_KEY` | claude-haiku-4-5 | ❌ |
-| OpenRouter | `OPENROUTER_API_KEY` | llama-3.1-8b-instruct:free | ✅ Yes |
-| Ollama | *(none — local)* | llama3.2 | ✅ Always |
+| OpenRouter | `OPENROUTER_API_KEY` | llama-3.1-8b-instruct:free | ✅ |
+| Ollama | *(none — local)* | llama3.2 | ✅ |
 
 ```bash
-python main.py --list-providers    # see what's available
-python main.py --llm               # auto-detect and use
-python main.py --llm --provider groq   # force a specific one
+memorylens --list-providers
+memorylens --llm                  # auto-detect
+memorylens --llm --provider groq  # force one
 ```
+
+---
+
+## How MemoryLens Compares
+
+Most evaluation frameworks measure quality at a single point in time. MemoryLens measures how memory quality **changes over conversation turns** — a dimension the tools below don't cover (they solve different problems, and compose well with this one):
+
+| Framework | Focus | Decay over turns | Multi-architecture | No-API mode |
+|-----------|-------|:----------------:|:------------------:|:-----------:|
+| **MemoryLens** | Memory decay | ✅ | ✅ 8 backends | ✅ |
+| [RAGAS](https://github.com/explodinggradients/ragas) | RAG answer quality | ❌ | ❌ | ❌ |
+| [TruLens](https://github.com/truera/trulens) | LLM app monitoring | ❌ | ❌ | ❌ |
+| [DeepEval](https://github.com/confident-ai/deepeval) | LLM answer quality | ❌ | ❌ | Partial |
+| [MemGPT / Letta](https://github.com/cpacker/MemGPT) | A memory *system*, not a benchmark | — | — | — |
+
+Details: [docs/comparison-with-existing-tools.md](docs/comparison-with-existing-tools.md)
 
 ---
 
 ## Project Structure
 
 ```
-memorylens/
-│
-├── simulator/
-│   ├── facts.py             # Fact definitions — the ground truth
-│   ├── conversation.py      # Turn-by-turn event generator
-│   └── personas.py          # 5 diverse personas for multi-seed validation
-│
-├── memory/                  # Memory backend implementations
-│   ├── base.py              # Abstract base — 3-method interface
-│   ├── naive.py             # Naive: full history, evict oldest
-│   ├── rag.py               # Ideal RAG: embed + retrieve (upper bound)
-│   ├── rag_chunked.py       # Chunked RAG: bounded FIFO index (realistic)
-│   ├── cascading.py         # Cascading Temporal: Hot/Warm/Cold tiers
-│   ├── summary.py           # SummaryMemory: rolling LLM compression
-│   └── decay.py             # 4 temporal decay functions (Ebbinghaus etc.)
-│
-├── evaluation/
-│   ├── metrics.py           # 5 metric functions + LLM eval pipeline
-│   ├── benchmark.py         # Benchmark runner + multi-seed aggregation
-│   ├── stats.py             # Mean ± std + 95% confidence intervals
-│   ├── llm_judge.py         # LLM-as-judge helper
-│   └── logger.py            # Experiment logger → JSON + CSV
-│
-├── utils/
-│   ├── embeddings.py        # sentence-transformers wrapper
-│   ├── providers.py         # Unified LLM provider abstraction (5 backends)
-│   └── llm.py               # Groq API wrapper (legacy)
-│
-├── paper/
-│   └── memorylens_paper.md  # Full research paper with citations
-│
-├── tests/
-│   ├── test_imports.py      # CI smoke test
-│   └── test_pipeline.py     # 24 integration tests (no API key)
-│
-├── .github/
-│   ├── workflows/ci.yml     # GitHub Actions — Python 3.10 + 3.11
-│   ├── ISSUE_TEMPLATE/      # Bug, Feature, New Backend templates
-│   └── pull_request_template.md
-│
-├── dashboard.py             # Streamlit dashboard
-├── main.py                  # CLI entry point
-└── quick_demo.py            # Zero-API-key demo
+memorylens/              installable package
+├── memory/              8 backends + decay functions (add yours here)
+├── simulator/           facts, conversation generator, personas, scenario registry
+├── evaluation/          metrics, benchmark runner, stats, experiment logger
+├── utils/               local embeddings, LLM provider abstraction
+├── api.py               FastAPI REST server
+└── cli.py               `memorylens` command
+
+tests/                   39 integration tests, no API key needed
+dashboard.py             Streamlit dashboard (decay curves, run history, export)
+docs/                    guides: adding a backend, comparisons, methodology
 ```
-
----
-
-## Tech Stack
-
-| Component | Technology | Why |
-|-----------|-----------|-----|
-| Embeddings | [sentence-transformers](https://sbert.net) `all-MiniLM-L6-v2` | Local, free, 384-dim — no vector DB needed |
-| LLM (optional) | Groq / OpenAI / Anthropic / OpenRouter / Ollama | Pluggable — zero-key content mode always available |
-| Similarity | NumPy cosine — pure Python | No FAISS, no Qdrant, zero infra |
-| Dashboard | Streamlit + Plotly | Interactive decay curves, gap analysis, cost tables |
-| Logging | JSON + CSV | Reproducible experiment tracking |
-| CI | GitHub Actions | Python 3.10 + 3.11, all 24 tests on every push |
 
 ---
 
 ## Contributing
 
-MemoryLens is actively looking for contributors across all skill levels.
-
-### Add a new memory backend (most impactful)
-
-The full interface is 3 methods:
+A new memory backend is 3 methods and one registry line — the full guide with a worked example is in [docs/adding-a-new-backend.md](docs/adding-a-new-backend.md):
 
 ```python
-# memory/your_backend.py
-from .base import BaseMemory
+from memorylens.memory.base import BaseMemory
 
 class YourMemory(BaseMemory):
-    name = "your_backend"   # used in --backends flag
-
-    def add_message(self, role: str, content: str, turn: int) -> None: ...
-    def get_context(self, query: str, current_turn: int) -> List[Dict]: ...
-    def reset(self) -> None: ...
+    name = "your_backend"
+    def add_message(self, role, content, turn): ...
+    def get_context(self, query, current_turn): ...
+    def reset(self): ...
 ```
 
-Then register in `evaluation/benchmark.py` and add one test. That's a complete PR.
-
-### Good first issues
-
-| Task | Difficulty | Where |
-|------|-----------|-------|
-| Update-aware Cascading — patch Cold tier on fact updates | Medium | `memory/cascading.py` |
-| Confidence interval error bars in dashboard | Easy | `dashboard.py` |
-| EdTech fact scenario (student/teacher) | Easy | `simulator/facts.py` |
-| `pip install memorylens` — pyproject.toml setup | Easy | root |
-| Docker deployment guide | Easy | docs/ |
-| Qdrant/FAISS backend replacing NumPy | Medium | `memory/` |
-| LangGraph orchestration layer | Hard | new |
-
-Browse [`good first issue`](https://github.com/Neal006/memorylens/issues?q=label%3A%22good+first+issue%22) · Full guide: [CONTRIBUTING.md](CONTRIBUTING.md)
-
-### Development setup
+New scenarios are a data file plus one registry entry. New metrics are plain functions.
 
 ```bash
-git clone https://github.com/Neal006/memorylens.git
-cd memorylens
-python -m venv .venv && source .venv/bin/activate   # or .venv\Scripts\activate on Windows
-pip install -r requirements.txt
-python tests/test_pipeline.py   # 24 tests, no API key needed
+git clone https://github.com/Neal006/memorylens && cd memorylens
+pip install -e ".[server,dev]"
+pytest tests -q          # all green before you start
 ```
+
+Start here: [`good first issue`](https://github.com/Neal006/memorylens/issues?q=label%3A%22good+first+issue%22) · Guide: [CONTRIBUTING.md](CONTRIBUTING.md) · Plans: [ROADMAP.md](ROADMAP.md)
 
 ---
 
-## Research
-
-The methodology, metric definitions, and decay ablation results are documented in the full research paper:
-
-**[MemoryLens: A Temporal Decay Benchmark for LLM Memory Architectures](paper/memorylens_paper.md)**
-
-Key sections:
-- Formal metric definitions with LaTeX formulae
-- Ebbinghaus decay ablation with 4 variants
-- Multi-seed results (n=5 personas)
-- Comparison against RAGAS, TruLens, MemGPT, A-MEM
-- Full reference list (Ebbinghaus 1885 → Xu 2024)
-
-### Citation
+## Citation
 
 ```bibtex
 @software{memorylens2026,
-  author    = {Srivastava, Neal},
-  title     = {{MemoryLens}: A Temporal Decay Benchmark for {LLM} Memory Architectures},
-  year      = {2026},
-  url       = {https://github.com/Neal006/memorylens},
-  version   = {0.3.0}
+  author  = {Srivastava, Neal},
+  title   = {{MemoryLens}: A Temporal Decay Benchmark for {LLM} Memory Architectures},
+  year    = {2026},
+  url     = {https://github.com/Neal006/memorylens},
+  version = {0.4.0}
 }
 ```
 
----
-
-## Roadmap
-
-| Status | Item |
-|--------|------|
-| ✅ Done | Naive, RAG, Cascading, SummaryMemory backends |
-| ✅ Done | 5 metrics (Recall@T, Precision@K, Drift, Noise, Efficiency) |
-| ✅ Done | Ebbinghaus decay + ablation study |
-| ✅ Done | Chunked RAG (production-realistic) |
-| ✅ Done | Multi-seed CI (n=5, mean ± std) |
-| ✅ Done | 5-provider LLM evaluation (Groq, OpenAI, Anthropic, OpenRouter, Ollama) |
-| ✅ Done | Research paper with citations |
-| 🔜 Next | Update-aware Cascading (fix temporal drift in Cold tier) |
-| 🔜 Next | Streamlit Community Cloud deployment (public live demo) |
-| 🔜 Next | Qdrant / FAISS production vector DB backend |
-| 🔜 Next | `pip install memorylens` (PyPI package) |
-| 🔜 Later | EdTech, Medical, Customer Support domain scenarios |
-| 🔜 Later | arXiv preprint |
-
-Full roadmap: [ROADMAP.md](ROADMAP.md)
-
----
-
 ## License
 
-[MIT](LICENSE) — free to use, modify, and distribute for any purpose.
+[MIT](LICENSE) — free to use, modify, and distribute.
 
 ---
 
 <div align="center">
 
-**If MemoryLens is useful to you, please consider giving it a ⭐**  
-It helps other researchers and developers find the project.
-
-[![Star History Chart](https://api.star-history.com/svg?repos=Neal006/memorylens&type=Date)](https://star-history.com/#Neal006/memorylens)
+**If MemoryLens is useful to you, a ⭐ helps other researchers and developers find it.**
 
 </div>

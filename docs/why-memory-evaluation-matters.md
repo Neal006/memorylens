@@ -1,6 +1,6 @@
 # Why LLM Memory Evaluation Matters
 
-> This document explains the **LLM memory decay problem** — why it exists, why no one is measuring it, and what MemoryLens does about it.
+> This document explains the **LLM memory decay problem** — why it exists, why it is rarely measured, and what MemoryLens does about it.
 
 ---
 
@@ -62,7 +62,7 @@ For the behavioral measurement (does the LLM actually answer with the old or new
 python main.py --llm   # enables the answer+judge pipeline for all drift measurements
 ```
 
-The two drift metrics together give you both the worst-case bound (content) and the real-world answer quality (LLM). On most well-structured backends, the LLM drift is 15–30% lower than content drift because the model correctly resolves contradictions when both values are present.
+The two drift metrics together give you both the worst-case bound (content) and the real-world answer quality (LLM). LLM drift is typically lower than content drift because the model often resolves the contradiction correctly when both values are present — measure the gap on your own setup with `--llm`.
 
 ### Cascade Efficiency — How much recall does each token buy?
 
@@ -70,7 +70,7 @@ The most practical metric for production systems:
 
 $$\text{CascEff}(T) = \frac{\text{Recall}_\text{cascading}(T) / \text{Tokens}_\text{cascading}(T)}{\text{Recall}_\text{naive}(T) / \text{Tokens}_\text{naive}(T)}$$
 
-A value of 5.67× means the Cascading architecture delivers 5.67 times more recall per token than the naive baseline — the same information accessed at 1/5.67 the inference cost.
+A value of 3× means the Cascading architecture delivers three times more recall per token than the naive baseline — the same information accessed at a third of the inference cost.
 
 ---
 
@@ -86,7 +86,7 @@ where *S* is memory stability and *t* is time elapsed. MemoryLens's Cascading Te
 decay = exp(-age / (stability * sqrt(1 + age)))
 ```
 
-This is not decorative. Ablation experiments show that the Ebbinghaus curve outperforms ad-hoc linear decay by 4% in cascade efficiency — because it correctly models the steep initial forgetting followed by a flattening retention curve for consolidated memories.
+The rationale: it models steep initial forgetting followed by a flattening retention curve for consolidated memories. Compare the variants on your own workload with the built-in ablation: `memorylens --decay ebbinghaus|exponential|linear|default`.
 
 ---
 

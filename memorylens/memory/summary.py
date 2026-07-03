@@ -61,7 +61,7 @@ def _extractive_compress(messages: List[Dict], existing_summary: str = "") -> st
 
 def _llm_compress(messages: List[Dict], existing_summary: str, model: str) -> str:
     """LLM-powered compression via Groq."""
-    from utils.llm import chat
+    from memorylens.utils.llm import chat
 
     batch_text = "\n".join(
         f"{m['role'].upper()}: {m['content']}" for m in messages

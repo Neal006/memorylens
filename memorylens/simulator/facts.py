@@ -11,7 +11,7 @@ class Fact:
     updated_value: Optional[str] = None
 
     def current_value(self, at_turn: int) -> str:
-        if self.updated_at and at_turn >= self.updated_at and self.updated_value:
+        if self.updated_at is not None and at_turn >= self.updated_at and self.updated_value:
             return self.updated_value
         return self.value
 

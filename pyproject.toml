@@ -1,16 +1,16 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "memorylens"
-version = "0.3.0"
-description = "The open-source benchmark for LLM memory decay — measure how AI memory architectures forget across long conversations"
+version = "0.4.0"
+description = "Benchmark for LLM memory decay — measure how AI memory architectures forget across long conversations"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 authors = [
-    { name = "Neal Srivastava", email = "builtbyneal@gmail.com" },
+    { name = "Neal Daftary", email = "builtbyneal@gmail.com" },
 ]
 keywords = [
     "llm",
@@ -34,41 +34,63 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+# Core stays lean: only what the benchmark itself needs.
 dependencies = [
-    "sentence-transformers>=2.7.0",
     "numpy>=1.24.0",
-    "pandas>=2.0.0",
-    "streamlit>=1.35.0",
-    "plotly>=5.18.0",
+    "sentence-transformers>=2.7.0",
     "python-dotenv>=1.0.0",
+    "networkx>=3.0",
 ]
 
 [project.optional-dependencies]
+dashboard = ["streamlit>=1.35.0", "plotly>=5.18.0", "pandas>=2.0.0"]
+server = ["fastapi>=0.110.0", "uvicorn>=0.29.0"]
+faiss = ["faiss-cpu>=1.8.0"]
 groq = ["groq>=0.9.0"]
 openai = ["openai>=1.0.0"]
 anthropic = ["anthropic>=0.25.0"]
-all-providers = ["groq>=0.9.0", "openai>=1.0.0", "anthropic>=0.25.0"]
-dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+all = [
+    "streamlit>=1.35.0",
+    "plotly>=5.18.0",
+    "pandas>=2.0.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "faiss-cpu>=1.8.0",
+    "groq>=0.9.0",
+    "openai>=1.0.0",
+    "anthropic>=0.25.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "httpx>=0.27",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "build>=1.0",
+    "twine>=5.0",
+]
 
 [project.scripts]
-memorylens = "main:main"
+memorylens = "memorylens.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Neal006/memorylens"
 Repository = "https://github.com/Neal006/memorylens"
 "Bug Tracker" = "https://github.com/Neal006/memorylens/issues"
 Documentation = "https://github.com/Neal006/memorylens#readme"
-Paper = "https://github.com/Neal006/memorylens/blob/main/paper/memorylens_paper.md"
+Changelog = "https://github.com/Neal006/memorylens/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
-include = ["memory*", "evaluation*", "simulator*", "utils*"]
+include = ["memorylens*"]
 
-[tool.setuptools.package-data]
-"*" = ["*.json"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,7 +1,7 @@
 from typing import List, Dict
 import numpy as np
 from .base import BaseMemory
-from utils.embeddings import embed, top_k_indices
+from memorylens.utils.embeddings import embed, top_k_indices
 
 
 class RAGMemory(BaseMemory):

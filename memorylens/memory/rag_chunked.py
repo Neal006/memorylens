@@ -24,7 +24,7 @@ Contrast with RAGMemory (memory/rag.py):
 from typing import List, Dict, Tuple
 import numpy as np
 from .base import BaseMemory
-from utils.embeddings import embed, top_k_indices
+from memorylens.utils.embeddings import embed, top_k_indices
 
 
 def _chunk_text(text: str, chunk_chars: int = 120, overlap_chars: int = 30) -> List[str]:

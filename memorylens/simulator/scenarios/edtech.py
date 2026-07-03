@@ -8,12 +8,12 @@ progressions (grade improvement, subject change, learning-style refinement).
 The filler turns are domain-specific tutoring requests (concept explanations,
 problem-solving help, study strategy questions) rather than generic tech Q&A,
 making this a harder benchmark for memory systems that rely on keyword overlap.
-
-Closes #13 / #4.
 """
 
 from typing import List
-from simulator.facts import Fact
+
+from memorylens.simulator.facts import Fact
+from memorylens.simulator.scenarios.base import Scenario
 
 
 # ── Fact sets ─────────────────────────────────────────────────────────────────
@@ -109,3 +109,12 @@ EDTECH_FILLER_TURNS: List[str] = [
     "Can you explain the concept of gravity?",
     "How do I improve my reading comprehension skills?",
 ]
+
+
+EDTECH = Scenario(
+    name="edtech",
+    description="Student-tutor conversation: academic profile facts with "
+                "learning progressions (grade, GPA, learning style updates).",
+    persona_pool=EDTECH_PERSONA_POOL,
+    filler_turns=EDTECH_FILLER_TURNS,
+)

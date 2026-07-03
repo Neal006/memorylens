@@ -1,83 +1,69 @@
 # MemoryLens Roadmap
 
-MemoryLens is the **open-source benchmark for LLM memory decay** — the only evaluation framework that measures how AI memory architectures forget over long conversations. This document tracks what's shipped, what's in progress, and what's next.
+MemoryLens is an open-source benchmark for **LLM memory decay** — measuring how AI memory architectures forget over long conversations. This document tracks what's shipped, what's in progress, and what's next.
 
 Want to pick something up? Check [CONTRIBUTING.md](CONTRIBUTING.md) and claim an item by opening an issue.
 
 ---
 
-## Shipped — v0.3 (current)
+## Shipped — v0.4 (current)
 
-### Core Benchmark
-- [x] Five memory backends: Naive · Ideal RAG · Chunked RAG · Cascading Temporal · SummaryMemory
-- [x] Five evaluation metrics: Recall@T · Precision@K · Temporal Drift · Memory Noise Ratio · Cascade Efficiency
-- [x] Multi-seed statistical validation — 5 diverse personas, mean ± std, 95% CI
-- [x] Ebbinghaus forgetting curve decay + ablation (linear / exponential / Ebbinghaus / heuristic)
-- [x] Bounded Chunked RAG — realistic production simulation with FIFO eviction
+### Packaging & Distribution
+- [x] **`pip install memorylens`** — proper PyPI package: single `memorylens` namespace, valid build backend, `memorylens` CLI entry point, lean core deps with `[dashboard]` / `[server]` / `[faiss]` / provider extras
+- [x] CI matrix: Python 3.10–3.13 on Linux + Windows + macOS, plus a package build/validation job
 
-### LLM Evaluation
-- [x] Two-stage LLM answer+judge pipeline (real recall, not string match)
-- [x] 5-provider LLM backend: Groq · OpenAI · Anthropic · OpenRouter · Ollama
-- [x] Gap analysis: content recall vs LLM recall (content can overestimate by 5–15pp)
-
-### Tooling
-- [x] CLI with `--seeds`, `--decay`, `--llm`, `--provider`, `--list-providers`
-- [x] Streamlit dashboard with Content/LLM/Gap tabbed charts, provider selector
-- [x] Zero-API-key mode — all content-based metrics work without any key
-- [x] Experiment logger (JSON + CSV) in `experiment_logs/`
-- [x] GitHub Actions CI: Python 3.10 + 3.11, 24 tests on every push
-
-### Documentation
-- [x] Research paper: [paper/memorylens_paper.md](paper/memorylens_paper.md)
-- [x] CITATION.cff — citable software with Zenodo integration
-- [x] `docs/why-memory-evaluation-matters.md`
-- [x] `docs/comparison-with-existing-tools.md`
-- [x] `docs/adding-a-new-backend.md`
-
----
-
-## Next — v0.4 (open for contributions)
-
-### High Priority Fixes
-- [ ] **Update-aware Cascading** — when a fact update event fires, patch existing Cold tier summaries to reflect the new value. This eliminates the temporal drift regression where cold summaries retain stale facts. ([open issue](https://github.com/Neal006/memorylens/issues))
-- [ ] **Confidence interval charts** — add ± std error bars to all decay curves in the Streamlit dashboard when multi-seed results are loaded
-- [ ] **Varied persona injection timing** — currently all 5 personas share identical fact injection timing (T=0,1,2,3,4,5,7,9), causing structure-deterministic backends (Naive, Cascading) to produce std=0%. Fix: randomise injection turns ±3 turns per persona per seed so timing-based backends show real variance across seeds. This is a known limitation documented in the README.
-
-### New Memory Backends
-- [ ] **EntityMemory** — extract named entities into a structured key-value store; benchmark whether structured storage beats unstructured retrieval ([guide](docs/adding-a-new-backend.md))
-- [ ] **Qdrant backend** — production vector DB replacing NumPy cosine similarity; benchmark at 10K+ conversation turns
-- [ ] **Graph memory** — entities + relationships stored as a knowledge graph; test multi-hop fact retrieval
-- [ ] **Redis-backed memory** — persistent cross-session memory; test recall across session boundaries
+### New Backends
+- [x] **EntityMemory** — structured key-value fact extraction
+- [x] **GraphMemory** — NetworkX knowledge graph with in-place fact updates
+- [x] **FAISSMemory** — FAISS vector index (optional dependency)
 
 ### Scenarios
-- [ ] **EdTech scenario** — student/teacher memory: track subject performance, weak topics, learning styles across 200-turn tutoring session
-- [ ] **Customer support scenario** — 100K customer histories; benchmark memory under high cardinality
-- [ ] **Medical scenario** — patient history across multi-session clinical conversations (anonymised synthetic data)
+- [x] **Scenario framework** — `Scenario` dataclass + registry; scenarios plug into CLI, API, and multi-seed runs
+- [x] **EdTech** (student-tutor), **Customer Support** (ticket lifecycle), **Medical** (synthetic patient consultations)
 
-### Integrations
-- [ ] **LangGraph wrapper** — run the full benchmark as a LangGraph state machine for agent-native evaluation
-- [ ] **RAGAS adapter** — export MemoryLens checkpoints as RAGAS-compatible evaluation samples
-- [ ] **LangChain memory adapter** — wrap LangChain `ConversationSummaryMemory` and `VectorStoreRetrieverMemory` as MemoryLens backends
+### Metrics & Fixes
+- [x] **contradiction_score** — detects when context surfaces both old and new values of an updated fact
+- [x] **Cold-tier recall regression fixed** — a cold-summary merge-order bug silently destroyed early facts (cascading recall at T=100 fell to ~8%); root-caused and fixed with regression tests
+- [x] Ebbinghaus + exponential forgetting-curve fitting (`--fit-curves`)
+
+### Tooling
+- [x] **FastAPI server** — async job-based REST API (`uvicorn memorylens.api:app`)
+- [x] **Dashboard Run History tab** — compare past benchmark runs side-by-side
+- [x] Experiment logger schema migration (rotates CSV on metric changes)
 
 ---
 
-## Later — v0.5
+## Shipped — v0.3
 
-### Deployment
-- [ ] **Streamlit Community Cloud** — live public demo URL (no install needed)
-- [ ] **HuggingFace Spaces** — mirror for ML community discoverability
-- [ ] **Docker image** — `docker run neal006/memorylens`
-- [ ] **`pip install memorylens`** — proper PyPI package
+- [x] Multi-seed statistical validation — 5 personas, mean ± std, 95% CI (`--seeds`)
+- [x] Ebbinghaus decay + ablation (linear / exponential / Ebbinghaus / heuristic)
+- [x] Bounded Chunked RAG (chunking + FIFO index eviction)
+- [x] Two-stage LLM answer+judge pipeline; 5 providers (Groq · OpenAI · Anthropic · OpenRouter · Ollama)
+- [x] SummaryMemory backend, experiment logger, zero-API-key mode
 
-### Research Track
-- [ ] **arXiv preprint** — publish [paper/memorylens_paper.md](paper/memorylens_paper.md) as arXiv:XXXX.XXXXX
-- [ ] **HuggingFace dataset** — synthetic conversation logs as a public dataset card
-- [ ] **Ebbinghaus curve fitting** — fit the actual Recall@T decay data to the forgetting curve and report stability parameters per backend
+---
+
+## Next — v0.5 (open for contributions)
+
+### Benchmark Realism
+- [ ] **Harder fact templates** — free-form paraphrased injections so extraction-based backends (entity, graph) can't pattern-match; today's templated facts let them score 100% by construction
+- [ ] **Varied persona injection timing** — randomise injection turns per seed so timing-deterministic backends show real cross-seed variance
+- [ ] **Longer horizons** — 500–1,000-turn runs where bounded indexes and context budgets genuinely saturate
+
+### New Backends
+- [ ] **Qdrant backend** — hosted vector DB, benchmark at 10K+ turns
+- [ ] **Redis-backed memory** — persistence across session boundaries
+- [ ] **LangChain memory adapter** — wrap `ConversationSummaryMemory` / `VectorStoreRetrieverMemory` as backends
+
+### Integrations & Deployment
+- [ ] **Publish to PyPI** (package is release-ready; needs a maintainer `twine upload`)
+- [ ] **Docker image**
+- [ ] **HuggingFace Spaces / Streamlit Cloud demo** (community contribution welcome — see issue #28)
+- [ ] **RAGAS adapter** — export checkpoints as RAGAS-compatible samples
 
 ### Engineering
-- [ ] **Async benchmark runner** — parallel backend evaluation for 5× faster multi-seed runs
-- [ ] **Plugin architecture** — register custom backends and metrics via Python entry points
-- [ ] **Streaming evaluation** — real-time memory quality monitoring for live LLM deployments
+- [ ] **Async benchmark runner** — parallel backend evaluation
+- [ ] **Plugin architecture** — register custom backends/metrics via entry points
 
 ---
 

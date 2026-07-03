@@ -12,7 +12,7 @@ Priority for auto-detection:
   Groq → OpenAI → Anthropic → OpenRouter → Ollama → None (content-only mode)
 
 Usage:
-    from utils.providers import get_provider, list_available
+    from memorylens.utils.providers import get_provider, list_available
 
     provider = get_provider()          # auto-detect
     provider = get_provider("openai")  # force a specific one

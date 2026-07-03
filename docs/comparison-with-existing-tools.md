@@ -10,7 +10,7 @@
 |---|---|---|---|---|---|---|
 | **Primary focus** | Memory decay over time | RAG quality | LLM app quality | LLM answer quality | Memory system | Memory implementation |
 | **Temporal evaluation** | ✅ Core feature | ❌ | ❌ | ❌ | N/A | N/A |
-| **Multi-architecture comparison** | ✅ 5 backends | ❌ | ❌ | ❌ | N/A | N/A |
+| **Multi-architecture comparison** | ✅ 8 backends | ❌ | ❌ | ❌ | N/A | N/A |
 | **No API key mode** | ✅ Full benchmark | ❌ | ❌ | Partial | ❌ | ❌ |
 | **Decay formula** | ✅ Ebbinghaus (1885) | N/A | N/A | N/A | N/A | N/A |
 | **Statistical validation** | ✅ n=5, mean ± std | ❌ | ❌ | ❌ | N/A | N/A |

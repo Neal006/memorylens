@@ -25,13 +25,19 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 COLORS = {
-    "naive":     "#f38ba8",
-    "rag":       "#89b4fa",
-    "cascading": "#a6e3a1",
-    "summary":   "#fab387",
+    "naive":       "#f38ba8",
+    "rag":         "#89b4fa",
+    "rag_chunked": "#74c7ec",
+    "cascading":   "#a6e3a1",
+    "summary":     "#fab387",
+    "entity":      "#cba6f7",
+    "graph":       "#f9e2af",
+    "faiss":       "#94e2d5",
 }
+ALL_BACKENDS = ["naive", "rag", "rag_chunked", "cascading", "summary", "entity", "graph", "faiss"]
+# Illustrative cost assumption, stated in the UI: $1 per 1M input tokens.
 MONTHLY_QUERIES = 100_000
-COST_PER_TOKEN_INR = 83 / 1_000_000  # ~$1 per 1M tokens * 83 INR/USD
+COST_PER_TOKEN_USD = 1 / 1_000_000
 
 _PROVIDER_KEYS = {
     "groq":       "GROQ_API_KEY",
@@ -61,8 +67,6 @@ def _detect_available_providers() -> List[str]:
 
 # ─── Sidebar ────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.image("https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/anthropic.svg",
-             width=32)
     st.title("MemoryLens")
     st.caption("LLM Memory Decay Evaluation Framework")
     st.divider()
@@ -76,8 +80,9 @@ with st.sidebar:
     )
     backends = st.multiselect(
         "Memory backends",
-        ["naive", "rag", "cascading", "summary"],
+        ALL_BACKENDS,
         default=["naive", "rag", "cascading"],
+        help='faiss requires the optional dependency: pip install "memorylens[faiss]"',
     )
     st.divider()
 
@@ -127,7 +132,7 @@ def load_demo() -> Dict:
 
 def render_results(data: Dict, is_demo: bool = False) -> None:
     cps: List[int] = data["checkpoints"]
-    present = [b for b in ["naive", "rag", "cascading", "summary"] if b in data]
+    present = [b for b in ALL_BACKENDS if b in data]
     has_llm  = data.get("has_llm_eval", False)
 
     if is_demo:
@@ -156,6 +161,8 @@ def render_results(data: Dict, is_demo: bool = False) -> None:
                 )
             st.metric("Avg Tokens",      f"{d['tokens'][-1]:,}")
             st.metric("Temporal Drift",  f"{d['drift'][-1]*100:.1f}%")
+            if d.get("contradiction"):
+                st.metric("Contradiction", f"{d['contradiction'][-1]*100:.1f}%")
             st.metric("Precision@K",     f"{d['precision'][-1]*100:.1f}%")
 
     st.divider()
@@ -312,43 +319,48 @@ def render_results(data: Dict, is_demo: bool = False) -> None:
         st.caption("Efficiency > 1.0 means cascading delivers more recall per token spent than the naive baseline.")
 
     # ── Token cost table ────────────────────────────────────────────────────
-    st.subheader("Business Impact — Monthly Token Cost")
+    st.subheader("Projected Monthly Token Cost")
+    st.caption(
+        f"Illustrative projection: {MONTHLY_QUERIES:,} queries/month at "
+        "$1 per 1M input tokens. Scale to your own price and volume."
+    )
     rows = []
     for name in present:
         final_tok = data[name]["tokens"][-1]
-        monthly = final_tok * MONTHLY_QUERIES * COST_PER_TOKEN_INR
+        monthly = final_tok * MONTHLY_QUERIES * COST_PER_TOKEN_USD
         rows.append({
-            "Backend":           name.capitalize(),
-            "Tokens / Query":    f"{final_tok:,}",
-            "Monthly Cost (₹)":  f"₹{monthly:,.0f}",
-            "Recall @ Final":    f"{data[name]['recall'][-1]*100:.1f}%",
-            "Drift @ Final":     f"{data[name]['drift'][-1]*100:.1f}%",
+            "Backend":            name.capitalize(),
+            "Tokens / Query":     f"{final_tok:,}",
+            "Monthly Cost ($)":   f"${monthly:,.0f}",
+            "Recall @ Final":     f"{data[name]['recall'][-1]*100:.1f}%",
+            "Drift @ Final":      f"{data[name]['drift'][-1]*100:.1f}%",
         })
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
     # Savings callout
     if "naive" in data and "cascading" in data:
-        n_cost = data["naive"]["tokens"][-1]    * MONTHLY_QUERIES * COST_PER_TOKEN_INR
-        c_cost = data["cascading"]["tokens"][-1] * MONTHLY_QUERIES * COST_PER_TOKEN_INR
-        pct = (n_cost - c_cost) / n_cost * 100
-        recall_delta = (data["cascading"]["recall"][-1] - data["naive"]["recall"][-1]) * 100
-        st.success(
-            f"**Cascading Temporal Memory saves {pct:.0f}% in token costs** vs Naive "
-            f"while delivering {recall_delta:+.1f}pp better recall at 100 K queries/month."
-        )
+        n_tok = data["naive"]["tokens"][-1]
+        c_tok = data["cascading"]["tokens"][-1]
+        if n_tok > 0:
+            pct = (n_tok - c_tok) / n_tok * 100
+            recall_delta = (data["cascading"]["recall"][-1] - data["naive"]["recall"][-1]) * 100
+            st.success(
+                f"**Cascading uses {pct:.0f}% fewer tokens per query** than Naive "
+                f"with {recall_delta:+.1f}pp recall difference in this run."
+            )
 
     # Cost bar chart
     fig4 = go.Figure()
     for row in rows:
-        cost_val = float(row["Monthly Cost (₹)"].replace("₹", "").replace(",", ""))
+        cost_val = float(row["Monthly Cost ($)"].replace("$", "").replace(",", ""))
         fig4.add_trace(go.Bar(
             x=[row["Backend"]], y=[cost_val],
             name=row["Backend"],
             marker_color=COLORS.get(row["Backend"].lower(), "#cdd6f4"),
-            text=f"₹{cost_val:,.0f}", textposition="outside",
+            text=f"${cost_val:,.0f}", textposition="outside",
         ))
     fig4.update_layout(
-        yaxis_title="Monthly cost (₹) @ 100K queries",
+        yaxis_title=f"Monthly cost ($) @ {MONTHLY_QUERIES:,} queries",
         template="plotly_dark", height=360, showlegend=False,
     )
     st.plotly_chart(fig4, use_container_width=True)
@@ -390,6 +402,79 @@ def _latex_table(data: Dict, checkpoints: List[int], present: List[str]) -> str:
     )
 
 
+def _series_value(v):
+    """Multi-seed logs store per-checkpoint stat dicts; single-seed logs store floats."""
+    return v.get("mean") if isinstance(v, dict) else v
+
+
+def render_history() -> None:
+    from memorylens.evaluation.logger import list_runs
+
+    runs = list_runs()
+    if not runs:
+        st.info(
+            "No logged runs yet. Run `memorylens --log` or click **▶ Run Live** — "
+            "every run is saved to `experiment_logs/`."
+        )
+        return
+
+    labels = {}
+    for r in runs:
+        cfg = r["config"]
+        label = (
+            f"{r['run_id']} · {cfg.get('total_turns', '?')} turns · "
+            f"{', '.join(cfg.get('backends', []))}"
+            + (f" · {cfg['provider']}" if cfg.get("provider") else "")
+        )
+        labels[label] = r
+
+    selected = st.multiselect(
+        "Runs to compare",
+        list(labels),
+        default=list(labels)[:2],
+        help="Overlays Recall@T curves; solid/dash/dot line style distinguishes runs.",
+    )
+    if not selected:
+        return
+
+    dashes = ["solid", "dash", "dot", "dashdot", "longdash"]
+    fig = go.Figure()
+    table_rows = []
+
+    for run_idx, label in enumerate(selected):
+        run = labels[label]
+        with open(run["path"]) as fh:
+            payload = json.load(fh)
+        results = payload.get("results", {})
+        cps = results.get("checkpoints", [])
+        for name in [b for b in ALL_BACKENDS if b in results]:
+            recall = [_series_value(v) for v in results[name].get("recall", [])]
+            tokens = [_series_value(v) for v in results[name].get("tokens", [])]
+            fig.add_trace(go.Scatter(
+                x=cps, y=[v * 100 for v in recall if v is not None],
+                name=f"{run['run_id']} · {name}",
+                mode="lines+markers",
+                line=dict(color=COLORS.get(name, "#cdd6f4"),
+                          dash=dashes[run_idx % len(dashes)], width=2),
+            ))
+            table_rows.append({
+                "Run":            run["run_id"],
+                "Backend":        name,
+                "Recall @ Final": f"{recall[-1]*100:.1f}%" if recall else "—",
+                "Tokens @ Final": f"{tokens[-1]:,.0f}"     if tokens else "—",
+                "Turns":          payload.get("config", {}).get("total_turns", "—"),
+                "Provider":       payload.get("config", {}).get("provider") or "content-only",
+            })
+
+    fig.update_layout(
+        xaxis_title="Conversation Turn", yaxis_title="Recall (%)",
+        yaxis=dict(range=[0, 105]), template="plotly_dark",
+        height=420, legend=dict(orientation="h", y=-0.25),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+
+
 # ─── Main logic ─────────────────────────────────────────────────────────────
 if "results" not in st.session_state:
     st.session_state.results = None
@@ -412,14 +497,14 @@ if run_btn:
             log_area.text_area("Progress", "\n".join(logs[-12:]), height=200)
 
         with st.spinner("Running benchmark…"):
-            from evaluation.benchmark import run_benchmark, results_to_display_dict
-            from evaluation.logger import log_run
+            from memorylens.evaluation.benchmark import run_benchmark, results_to_display_dict
+            from memorylens.evaluation.logger import log_run
 
             # Resolve provider (None = content-only)
             provider_obj = None
             if selected_provider:
                 try:
-                    from utils.providers import get_provider
+                    from memorylens.utils.providers import get_provider
                     provider_obj = get_provider(selected_provider)
                     push_log(f"LLM provider: {provider_obj.name}")
                 except Exception as e:
@@ -446,30 +531,35 @@ if run_btn:
         log_area.empty()
         st.rerun()
 
-if st.session_state.results:
-    render_results(st.session_state.results, is_demo=st.session_state.is_demo)
-else:
-    # ── Landing page ──────────────────────────────────────────────────────
-    st.title("🔭 MemoryLens")
-    st.markdown("### *An Evaluation Framework for LLM Memory Decay*")
-    st.markdown("> **You can't improve what you can't measure. Nobody is measuring memory.**")
-    st.divider()
+tab_bench, tab_history = st.tabs(["Benchmark", "Run History"])
 
-    st.markdown("""
+with tab_history:
+    render_history()
+
+with tab_bench:
+    if st.session_state.results:
+        render_results(st.session_state.results, is_demo=st.session_state.is_demo)
+    else:
+        # ── Landing page ──────────────────────────────────────────────────
+        st.title("🔭 MemoryLens")
+        st.markdown("### *An Evaluation Framework for LLM Memory Decay*")
+        st.divider()
+
+        st.markdown(f"""
 | Layer | What It Does |
 |-------|--------------|
-| **Memory Injection** | Injects personal facts at T=0 and queries them at T=10, 25, 50, 100 |
-| **4 Backends** | Naive · RAG · Cascading Temporal · SummaryMemory |
-| **5 Metrics** | Recall@T · Precision@K · Temporal Drift · Memory Noise Ratio · Token Cost |
+| **Memory Injection** | Injects personal facts at known turns and queries them at checkpoints |
+| **{len(ALL_BACKENDS)} Backends** | {' · '.join(ALL_BACKENDS)} |
+| **6 Metrics** | Recall@T · Precision@K · Temporal Drift · Contradiction · Noise Ratio · Token Cost |
 | **LLM Eval** | Two-stage answer+judge pipeline — 5 providers (Groq, OpenAI, Anthropic, OpenRouter, Ollama) |
-| **Dashboard** | Decay curves, content vs LLM recall gap, cost impact, LaTeX export |
+| **Dashboard** | Decay curves, content vs LLM recall gap, cost projection, run history, LaTeX export |
 
 **Click 📊 Demo** in the sidebar for instant results, or configure a provider and click **▶ Run Live**.
 """)
 
-    st.markdown("---")
-    st.markdown("#### How Cascading Temporal Memory Works")
-    st.code("""
+        st.markdown("---")
+        st.markdown("#### How Cascading Temporal Memory Works")
+        st.code("""
 ┌─────────────────────────────────────────────────────────┐
 │                  CASCADING TEMPORAL MEMORY               │
 │                                                          │

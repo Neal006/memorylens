@@ -1,3 +1,0 @@
-run_id,backend,turn,recall,precision,drift,noise,tokens,total_turns
-test_run,naive,10,1.0,0.9,0.0,0.5,100,25
-test_run,naive,25,0.8,0.7,0.1,0.8,500,25

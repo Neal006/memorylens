@@ -26,3 +26,4 @@ benchmark_v04.json
 demo_venv/
 benchmark_v04_200.json
 *.db
+experiment_logs/runs_summary*.csv

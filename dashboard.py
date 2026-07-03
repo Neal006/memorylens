@@ -408,7 +408,7 @@ def _series_value(v):
 
 
 def render_history() -> None:
-    from memorylens.evaluation.logger import list_runs
+    from memorylens.evaluation.logger import list_runs, get_run_results
 
     runs = list_runs()
     if not runs:
@@ -443,27 +443,28 @@ def render_history() -> None:
 
     for run_idx, label in enumerate(selected):
         run = labels[label]
-        with open(run["path"]) as fh:
-            payload = json.load(fh)
-        results = payload.get("results", {})
+        results = get_run_results(run["run_id"]) or {}
         cps = results.get("checkpoints", [])
         for name in [b for b in ALL_BACKENDS if b in results]:
             recall = [_series_value(v) for v in results[name].get("recall", [])]
             tokens = [_series_value(v) for v in results[name].get("tokens", [])]
             fig.add_trace(go.Scatter(
-                x=cps, y=[v * 100 for v in recall if v is not None],
+                x=cps,
+                y=[v * 100 if v is not None else None for v in recall],
                 name=f"{run['run_id']} · {name}",
                 mode="lines+markers",
                 line=dict(color=COLORS.get(name, "#cdd6f4"),
                           dash=dashes[run_idx % len(dashes)], width=2),
             ))
+            final_recall = next((v for v in reversed(recall) if v is not None), None)
+            final_tokens = next((v for v in reversed(tokens) if v is not None), None)
             table_rows.append({
                 "Run":            run["run_id"],
                 "Backend":        name,
-                "Recall @ Final": f"{recall[-1]*100:.1f}%" if recall else "—",
-                "Tokens @ Final": f"{tokens[-1]:,.0f}"     if tokens else "—",
-                "Turns":          payload.get("config", {}).get("total_turns", "—"),
-                "Provider":       payload.get("config", {}).get("provider") or "content-only",
+                "Recall @ Final": f"{final_recall*100:.1f}%" if final_recall is not None else "—",
+                "Tokens @ Final": f"{final_tokens:,.0f}"     if final_tokens is not None else "—",
+                "Turns":          run["config"].get("total_turns", "—"),
+                "Provider":       run["config"].get("provider") or "content-only",
             })
 
     fig.update_layout(

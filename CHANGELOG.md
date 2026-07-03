@@ -26,8 +26,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   GET `/v1/backends`, `/v1/scenarios`, `/health` (#25)
 - **Dashboard Run History tab** — overlay Recall@T curves from past `experiment_logs/`
   runs and compare final metrics side-by-side (#27)
-- 16 new integration tests (39 total): GraphMemory, contradiction_score, scenarios,
-  FAISS, API lifecycle, and cascading regressions (#31)
+- **SQLite persistent storage** (`memorylens/utils/storage.py`) — queryable database
+  alongside the JSON/CSV logs; `log_run()` writes to it, `list_runs()` queries it
+  first, `Storage.compare_runs()` compares recall across runs, and
+  `python -m memorylens.utils.migrate_legacy_logs` imports legacy JSON logs
+  (#26, contributed by @Sugaria0427)
+- 23 new integration tests (45 total): GraphMemory, contradiction_score, scenarios,
+  FAISS, API lifecycle, SQLite storage, and cascading regressions (#31)
 - CI matrix expanded to Python 3.10–3.13 on Linux plus Windows and macOS, with a
   package build + `twine check` + wheel-install job (#30)
 
@@ -52,18 +57,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ---
 
 ## [0.3.0] — 2026-05-24
-
-### Added
-
-- SQLite persistent storage (`utils/storage.py`) — queryable database replacing flat JSON/CSV logs
-- Migration script (`utils/migrate_legacy_logs.py`) — one-shot import of existing JSON logs into SQLite
-- `Storage.compare_runs()` — cross-run recall comparison API
-- `log_run()` now writes to SQLite alongside existing JSON/CSV output (backward compatible)
-- `list_runs()` queries SQLite first, falls back to filesystem scan
-
-### Fixed
-
-- `_append_csv_summary` now properly filters `has_llm_eval` from display_data (pre-existing bug where `has_llm_eval: True` caused `TypeError` when iterating display_data)
 
 ### Documentation — Metric Accuracy Clarifications
 

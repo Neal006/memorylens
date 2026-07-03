@@ -241,7 +241,7 @@ memorylens/              installable package
 ├── memory/              8 backends + decay functions (add yours here)
 ├── simulator/           facts, conversation generator, personas, scenario registry
 ├── evaluation/          metrics, benchmark runner, stats, experiment logger
-├── utils/               local embeddings, LLM provider abstraction
+├── utils/               local embeddings, LLM providers, SQLite run storage
 ├── api.py               FastAPI REST server
 └── cli.py               `memorylens` command
 
@@ -282,7 +282,7 @@ Start here: [`good first issue`](https://github.com/Neal006/memorylens/issues?q=
 
 ```bibtex
 @software{memorylens2026,
-  author  = {Srivastava, Neal},
+  author  = {Daftary, Neal},
   title   = {{MemoryLens}: A Temporal Decay Benchmark for {LLM} Memory Architectures},
   year    = {2026},
   url     = {https://github.com/Neal006/memorylens},

@@ -12,7 +12,7 @@ abstract: >
   four domain scenarios, and a dual evaluation pipeline (content-based + LLM
   answer+judge) supporting five provider backends.
 authors:
-  - family-names: Srivastava
+  - family-names: Daftary
     given-names: Neal
     alias: Neal006
     orcid: ""

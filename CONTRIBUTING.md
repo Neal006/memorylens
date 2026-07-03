@@ -109,7 +109,9 @@ memorylens/                  The installable package (pip install memorylens)
 │   └── scenarios/           Scenario registry (default, edtech, support, medical)
 ├── utils/
 │   ├── embeddings.py        Local sentence-transformer embeddings (no API key needed)
-│   └── providers.py         LLM provider abstraction (Groq, OpenAI, Anthropic, Ollama…)
+│   ├── providers.py         LLM provider abstraction (Groq, OpenAI, Anthropic, Ollama…)
+│   ├── storage.py           SQLite store for benchmark runs (experiment_logs/memorylens.db)
+│   └── migrate_legacy_logs.py  One-shot legacy JSON → SQLite import
 ├── api.py                   FastAPI REST server (optional dep: memorylens[server])
 └── cli.py                   CLI entry point (`memorylens` command)
 

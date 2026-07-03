@@ -25,3 +25,4 @@ experiment_logs/memorylens.db
 benchmark_v04.json
 demo_venv/
 benchmark_v04_200.json
+*.db

@@ -43,7 +43,9 @@ pip install memorylens-bench
 | `memorylens-bench[dashboard]` | streamlit, plotly, pandas | Interactive dashboard |
 | `memorylens-bench[server]` | fastapi, uvicorn | REST API |
 | `memorylens-bench[faiss]` | faiss-cpu | FAISS vector backend |
-| `memorylens-bench[groq]` / `[openai]` / `[anthropic]` | provider SDK | LLM evaluation mode |
+| `memorylens-bench[groq]` | groq | LLM evaluation via Groq |
+| `memorylens-bench[openai]` | openai | LLM evaluation via OpenAI |
+| `memorylens-bench[anthropic]` | anthropic | LLM evaluation via Anthropic |
 | `memorylens-bench[all]` | everything above | — |
 
 Python 3.10–3.13 · Linux, macOS, Windows (all tested in CI).

@@ -2,8 +2,8 @@ import re
 from typing import List, Dict, Optional, Callable, Tuple
 import numpy as np
 from .base import BaseMemory
-from .decay import get_decay_fn, decay_ebbinghaus
-from memorylens.utils.embeddings import embed, top_k_indices
+from .decay import get_decay_fn
+from memorylens.utils.embeddings import embed
 
 
 def _extractive_summary(messages: List[Dict], max_chars: int = 400) -> str:

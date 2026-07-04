@@ -6,7 +6,7 @@ Run:  streamlit run dashboard.py
 
 import json
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -235,8 +235,8 @@ def render_results(data: Dict, is_demo: bool = False) -> None:
                 content_vals = data[name]["recall"]
                 llm_vals = data[name].get("llm_recall", [None] * len(content_vals))
                 gaps = [
-                    (c - l) * 100 if l is not None else None
-                    for c, l in zip(content_vals, llm_vals)
+                    (c - lv) * 100 if lv is not None else None
+                    for c, lv in zip(content_vals, llm_vals)
                 ]
                 if any(g is not None for g in gaps):
                     fig_gap.add_trace(go.Bar(

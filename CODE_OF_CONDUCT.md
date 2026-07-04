@@ -23,7 +23,7 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by opening a GitHub issue or contacting the maintainer directly. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported privately to the maintainer at builtbyneal@gmail.com. All complaints will be reviewed and investigated promptly and fairly, and reporter confidentiality will be respected.
 
 ## Attribution
 

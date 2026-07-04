@@ -21,7 +21,7 @@ Contrast with RAGMemory (memory/rag.py):
   ChunkedRAGMemory — chunked + evicting, bounded index (realistic lower bound)
 """
 
-from typing import List, Dict, Tuple
+from typing import List, Dict
 import numpy as np
 from .base import BaseMemory
 from memorylens.utils.embeddings import embed, top_k_indices

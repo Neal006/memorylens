@@ -35,7 +35,7 @@ def main() -> None:
     from memorylens.memory.cascading import CascadingTemporalMemory
     from memorylens.evaluation.metrics import (
         recall_at_t, temporal_drift_score, memory_noise_ratio,
-        precision_at_k, cascade_efficiency,
+        cascade_efficiency,
     )
 
     if not args.quiet:

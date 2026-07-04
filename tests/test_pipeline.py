@@ -10,14 +10,14 @@ os.environ["TRANSFORMERS_NO_TF"] = "1"
 os.environ["USE_TF"] = "0"
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from memorylens.simulator.facts import BENCHMARK_FACTS, Fact
+from memorylens.simulator.facts import BENCHMARK_FACTS
 from memorylens.simulator.conversation import generate_conversation
 from memorylens.memory.naive import NaiveMemory
 from memorylens.memory.rag import RAGMemory
 from memorylens.memory.cascading import CascadingTemporalMemory
 from memorylens.memory.summary import SummaryMemory
 from memorylens.evaluation.metrics import (
-    recall_at_t, temporal_drift_score, memory_noise_ratio, precision_at_k
+    recall_at_t, temporal_drift_score, memory_noise_ratio
 )
 
 

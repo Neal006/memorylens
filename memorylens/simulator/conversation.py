@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from .facts import Fact, BENCHMARK_FACTS
+from .facts import Fact
 
 FILLER_TURNS = [
     "Can you explain the difference between REST and GraphQL APIs?",

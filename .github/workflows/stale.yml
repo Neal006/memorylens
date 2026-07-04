@@ -1,0 +1,32 @@
+name: Stale
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-issue-stale: 60
+          days-before-issue-close: 14
+          days-before-pr-stale: 30
+          days-before-pr-close: 14
+          stale-issue-label: "status: stale"
+          stale-pr-label: "status: stale"
+          exempt-issue-labels: "status: open-for-contribution,pinned,roadmap,help wanted,good first issue"
+          exempt-pr-labels: "pinned"
+          stale-issue-message: >
+            This issue has been inactive for 60 days. It will close in 14 days
+            unless there is new activity. Comment or add the `pinned` label to keep it open.
+          stale-pr-message: >
+            This PR has been inactive for 30 days. It will close in 14 days
+            unless there is new activity. Push a commit or comment to keep it open.
+          operations-per-run: 100

@@ -36,8 +36,8 @@ pytest tests/ -v
 - [ ] Type hints used on all new function signatures
 - [ ] No API key required to run any new tests
 - [ ] If adding a backend: registered in `VALID_BACKENDS` and `_make_memory()` in `benchmark.py`
-- [ ] If adding a scenario: `--scenario` flag added to `main.py`
-- [ ] If adding a CLI flag: docstring example in `main.py` updated
+- [ ] If adding a scenario: registered in the `SCENARIOS` dict in `simulator/scenarios/__init__.py`
+- [ ] Lint passes: `ruff check .`
 - [ ] README updated if there are new user-facing features or CLI flags
 - [ ] No hardcoded API keys or secrets in any file
 
@@ -51,5 +51,3 @@ pytest tests/ -v
 | Recall@T=100 | | |
 | Tokens/query@T=100 | | |
 | Cascade Efficiency | | |
-
-🤖 Generated with [Claude Code](https://claude.ai/claude-code)

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List
 from memorylens.memory.base import BaseMemory
 from memorylens.simulator.facts import Fact
 

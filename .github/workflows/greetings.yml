@@ -1,0 +1,29 @@
+name: Welcome
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  greet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: >
+            Thanks for opening your first MemoryLens issue! A maintainer will triage it soon.
+            If you'd like to work on it yourself, comment here to claim it —
+            [CONTRIBUTING.md](https://github.com/Neal006/memorylens/blob/main/CONTRIBUTING.md)
+            has everything you need to get a dev environment running in 5 minutes.
+          pr-message: >
+            Thanks for your first contribution to MemoryLens! 🎉 CI will run the test suite
+            on Linux/macOS/Windows across Python 3.10–3.13 — no API key needed.
+            A maintainer will review within 48 hours. If CI fails, `pytest tests/ -v` and
+            `ruff check .` locally reproduce almost every failure.

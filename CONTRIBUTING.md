@@ -286,9 +286,16 @@ refactor: extract _extract_entity() helper from EntityMemory
 
 1. Fork the repo and create a branch: `git checkout -b feat/your-feature`
 2. Make your changes with tests
-3. Run `pytest tests/ -v` — all tests must pass
+3. Run `pytest tests/ -v` and `ruff check .` — both must pass
 4. Open a PR against `main` — fill in the PR template
 5. Reference the issue: `Closes #<issue-number>` in the PR description
+
+**What happens automatically when you open a PR:**
+
+- CI runs lint + the full test suite on Linux, macOS, and Windows (Python 3.10–3.13) and builds the package
+- Your **PR title is checked** against Conventional Commits (`feat: ...`, `fix: ...`) — PRs are squash-merged, so the title becomes the commit message
+- Area labels (`area: memory-backend`, `area: documentation`, …) are applied from the files you changed
+- PRs inactive for 30 days are marked stale and closed after 14 more — push a commit or comment to keep one alive
 
 **PR checklist:**
 - [ ] All existing tests pass: `pytest tests/ -v`
@@ -311,7 +318,7 @@ refactor: extract _extract_entity() helper from EntityMemory
 | **No new top-level dependencies** without issue discussion | Keeps install size predictable |
 | **All new metrics return `float` in `[0, 1]`** | Ensures dashboard and aggregation code work without guards |
 | **All tests pass without an API key** | Keeps CI fast and accessible to all contributors |
-| **PEP 8**, 100-char line limit | Consistency |
+| **`ruff check .` passes** (PEP 8, 100-char lines) | Enforced in CI — no style debates in review |
 
 ---
 

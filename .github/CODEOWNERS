@@ -1,0 +1,7 @@
+# Default owner for everything — update as maintainers join.
+* @Neal006
+
+# High-blast-radius areas: benchmark correctness and published numbers.
+/memorylens/evaluation/ @Neal006
+/README.md @Neal006
+/.github/ @Neal006

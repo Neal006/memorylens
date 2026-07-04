@@ -1,0 +1,49 @@
+"area: memory-backend":
+  - changed-files:
+      - any-glob-to-any-file: "memorylens/memory/**"
+
+"area: evaluation":
+  - changed-files:
+      - any-glob-to-any-file: "memorylens/evaluation/**"
+
+"area: simulator":
+  - changed-files:
+      - any-glob-to-any-file: "memorylens/simulator/**"
+
+"area: providers":
+  - changed-files:
+      - any-glob-to-any-file: "memorylens/utils/providers.py"
+
+"area: api":
+  - changed-files:
+      - any-glob-to-any-file: "memorylens/api.py"
+
+"area: cli":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "memorylens/cli.py"
+          - "main.py"
+
+"area: dashboard":
+  - changed-files:
+      - any-glob-to-any-file: "dashboard.py"
+
+"area: documentation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+          - "docs/**"
+
+"area: tests":
+  - changed-files:
+      - any-glob-to-any-file: "tests/**"
+
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+
+"area: dependencies":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "pyproject.toml"
+          - "requirements.txt"

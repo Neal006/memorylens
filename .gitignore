@@ -27,3 +27,5 @@ demo_venv/
 benchmark_v04_200.json
 *.db
 experiment_logs/runs_summary*.csv
+.pytest_cache/
+.ruff_cache/

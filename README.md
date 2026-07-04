@@ -276,7 +276,7 @@ pip install -e ".[server,dev]"
 pytest tests -q          # all green before you start
 ```
 
-Start here: [`good first issue`](https://github.com/Neal006/memorylens/issues?q=label%3A%22good+first+issue%22) · Guide: [CONTRIBUTING.md](CONTRIBUTING.md) · Plans: [ROADMAP.md](ROADMAP.md)
+Start here: [`good first issue`](https://github.com/Neal006/memorylens/issues?q=label%3A%22good+first+issue%22) · Guide: [CONTRIBUTING.md](CONTRIBUTING.md) · Plans: [ROADMAP.md](ROADMAP.md) · Questions: [Discussions](https://github.com/Neal006/memorylens/discussions) · Vulnerabilities: [SECURITY.md](SECURITY.md)
 
 ---
 

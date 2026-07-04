@@ -12,7 +12,7 @@ def get_client():
         except ImportError as e:
             raise ImportError(
                 'The groq package is required for LLM compression. '
-                'Install it with: pip install "memorylens[groq]"'
+                'Install it with: pip install "memorylens-bench[groq]"'
             ) from e
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:

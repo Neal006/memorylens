@@ -2,7 +2,7 @@
 REST API exposing the MemoryLens benchmark pipeline.
 
 Run:
-    pip install "memorylens[server]"
+    pip install "memorylens-bench[server]"
     uvicorn memorylens.api:app
 
 Benchmark runs are CPU-bound (embedding model), so POST /v1/benchmarks returns

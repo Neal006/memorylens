@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "memorylens"
+name = "memorylens-bench"
 version = "0.4.0"
 description = "Benchmark for LLM memory decay — measure how AI memory architectures forget across long conversations"
 readme = "README.md"

@@ -9,7 +9,7 @@ Want to pick something up? Check [CONTRIBUTING.md](CONTRIBUTING.md) and claim an
 ## Shipped — v0.4 (current)
 
 ### Packaging & Distribution
-- [x] **`pip install memorylens`** — proper PyPI package: single `memorylens` namespace, valid build backend, `memorylens` CLI entry point, lean core deps with `[dashboard]` / `[server]` / `[faiss]` / provider extras
+- [x] **`pip install memorylens-bench`** — proper PyPI package (the bare `memorylens` name was already taken on PyPI): single `memorylens` import namespace, valid build backend, `memorylens` CLI entry point, lean core deps with `[dashboard]` / `[server]` / `[faiss]` / provider extras
 - [x] CI matrix: Python 3.10–3.13 on Linux + Windows + macOS, plus a package build/validation job
 
 ### New Backends

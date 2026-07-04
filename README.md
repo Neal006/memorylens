@@ -7,7 +7,7 @@
 **An open-source benchmark for LLM memory decay — 8 memory architectures, 6 metrics, 4 domain scenarios, statistical rigor, zero API keys required.**
 
 [![CI](https://github.com/Neal006/memorylens/actions/workflows/ci.yml/badge.svg)](https://github.com/Neal006/memorylens/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/memorylens)](https://pypi.org/project/memorylens/)
+[![PyPI](https://img.shields.io/pypi/v/memorylens-bench)](https://pypi.org/project/memorylens-bench/)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776ab?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22c55e)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
@@ -35,16 +35,16 @@ Every core metric is content-based and deterministic: no API key, fully reproduc
 ## Install
 
 ```bash
-pip install memorylens
+pip install memorylens-bench
 ```
 
 | Extra | Installs | For |
 |-------|----------|-----|
-| `memorylens[dashboard]` | streamlit, plotly, pandas | Interactive dashboard |
-| `memorylens[server]` | fastapi, uvicorn | REST API |
-| `memorylens[faiss]` | faiss-cpu | FAISS vector backend |
-| `memorylens[groq]` / `[openai]` / `[anthropic]` | provider SDK | LLM evaluation mode |
-| `memorylens[all]` | everything above | — |
+| `memorylens-bench[dashboard]` | streamlit, plotly, pandas | Interactive dashboard |
+| `memorylens-bench[server]` | fastapi, uvicorn | REST API |
+| `memorylens-bench[faiss]` | faiss-cpu | FAISS vector backend |
+| `memorylens-bench[groq]` / `[openai]` / `[anthropic]` | provider SDK | LLM evaluation mode |
+| `memorylens-bench[all]` | everything above | — |
 
 Python 3.10–3.13 · Linux, macOS, Windows (all tested in CI).
 
@@ -76,10 +76,10 @@ print(results["cascading"]["recall"])   # recall at each checkpoint
 ### Dashboard and REST API
 
 ```bash
-pip install "memorylens[dashboard]"
+pip install "memorylens-bench[dashboard]"
 streamlit run dashboard.py            # decay curves, run history, cost projection
 
-pip install "memorylens[server]"
+pip install "memorylens-bench[server]"
 uvicorn memorylens.api:app            # POST /v1/benchmarks → job id → poll results
 ```
 

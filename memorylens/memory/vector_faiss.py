@@ -5,7 +5,7 @@ Same retrieval semantics as RAGMemory (top-K cosine similarity + recency
 window) but the search runs inside faiss.IndexFlatIP instead of a NumPy
 matmul, which is what a production deployment would use at scale.
 
-Requires the optional dependency:  pip install "memorylens[faiss]"
+Requires the optional dependency:  pip install "memorylens-bench[faiss]"
 """
 
 from typing import Dict, List
@@ -22,7 +22,7 @@ def _require_faiss():
     except ImportError as e:
         raise ImportError(
             "FAISSMemory requires faiss-cpu. Install it with: "
-            'pip install "memorylens[faiss]"'
+            'pip install "memorylens-bench[faiss]"'
         ) from e
     return faiss
 

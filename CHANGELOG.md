@@ -8,7 +8,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.4.0] — 2026-07-04
 
 ### Added
-- **PyPI-ready packaging** — all code now lives under a single `memorylens` package
+- **PyPI-ready packaging** — published as **`memorylens-bench`** (the bare
+  `memorylens` name was already taken on PyPI by an unrelated project); the
+  import namespace and CLI remain `memorylens`. All code now lives under a single `memorylens` package
   (`memorylens.memory`, `memorylens.simulator`, `memorylens.evaluation`, `memorylens.utils`).
   Fixed an invalid `build-backend` that made the sdist unbuildable, added the
   `memorylens` console command (`memorylens.cli:main`), and split dependencies into a

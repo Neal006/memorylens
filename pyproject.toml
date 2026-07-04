@@ -77,6 +77,7 @@ dev = [
     "uvicorn>=0.29.0",
     "build>=1.0",
     "twine>=5.0",
+    "ruff>=0.5",
 ]
 
 [project.scripts]
@@ -94,3 +95,11 @@ include = ["memorylens*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint.per-file-ignores]
+# import smoke test — unused imports are the point
+"tests/test_imports.py" = ["F401"]

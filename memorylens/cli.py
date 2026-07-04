@@ -26,7 +26,6 @@ Other options:
     memorylens --list-providers
 """
 
-import os
 import sys
 import json
 import argparse
@@ -235,7 +234,7 @@ def _print_single_seed_results(display: dict, backends: list) -> None:
     col = "  ".join(f"T={c:3d}" for c in checkpoints)
     sep = "-" * 65
 
-    print(f"\nCONTENT Recall@T")
+    print("\nCONTENT Recall@T")
     print(f"  {'Backend':<14}  {col}")
     print(sep)
     for name in backends:
@@ -245,7 +244,7 @@ def _print_single_seed_results(display: dict, backends: list) -> None:
         print(f"  {name:<14}  {vals}")
 
     if display.get("has_llm_eval"):
-        print(f"\nLLM Recall@T (answer+judge)")
+        print("\nLLM Recall@T (answer+judge)")
         print(f"  {'Backend':<14}  {col}")
         print(sep)
         for name in backends:
@@ -258,7 +257,7 @@ def _print_single_seed_results(display: dict, backends: list) -> None:
             )
             print(f"  {name:<14}  {vals}")
 
-        print(f"\n  Gap = Content Recall - LLM Recall")
+        print("\n  Gap = Content Recall - LLM Recall")
         print(f"  {'Backend':<14}  {col}")
         print(sep)
         for name in backends:
@@ -267,8 +266,8 @@ def _print_single_seed_results(display: dict, backends: list) -> None:
             content = display[name]["recall"]
             llm     = display[name].get("llm_recall", [None]*len(content))
             vals = "  ".join(
-                f"{(c - l)*100:+5.1f}%" if l is not None else "  N/A "
-                for c, l in zip(content, llm)
+                f"{(c - lv)*100:+5.1f}%" if lv is not None else "  N/A "
+                for c, lv in zip(content, llm)
             )
             print(f"  {name:<14}  {vals}")
 

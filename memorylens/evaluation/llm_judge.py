@@ -6,7 +6,7 @@ Only called when GROQ_API_KEY is set and the user explicitly enables
 judge mode. All primary benchmark metrics remain content-based.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 from memorylens.utils.llm import chat
 from memorylens.memory.base import BaseMemory
 from memorylens.simulator.facts import Fact
@@ -32,7 +32,8 @@ def judge_answer(
     ]
     raw = chat(messages, model=model, temperature=0.0, max_tokens=80)
 
-    import json, re
+    import json
+    import re
     try:
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         parsed = json.loads(match.group()) if match else {}

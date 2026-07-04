@@ -85,7 +85,7 @@ Set `TRANSFORMERS_NO_TF=1` and `USE_TF=0` if you have TensorFlow installed along
 ## Project layout
 
 ```
-memorylens/                  The installable package (pip install memorylens)
+memorylens/                  The installable package (pip install memorylens-bench)
 ├── memory/                  Memory backend implementations — add new backends here
 │   ├── base.py              Abstract BaseMemory interface (3 methods every backend must implement)
 │   ├── naive.py             Naive full-history backend (simplest example)
@@ -95,7 +95,7 @@ memorylens/                  The installable package (pip install memorylens)
 │   ├── summary.py           Rolling-summary compression backend
 │   ├── entity.py            Structured key-value entity extraction (great reference for new backends)
 │   ├── graph.py             NetworkX knowledge-graph backend
-│   ├── vector_faiss.py      FAISS vector index backend (optional dep: memorylens[faiss])
+│   ├── vector_faiss.py      FAISS vector index backend (optional dep: memorylens-bench[faiss])
 │   └── decay.py             Temporal decay functions (ebbinghaus, exponential, linear)
 ├── evaluation/
 │   ├── metrics.py           All benchmark metrics — add new metrics here
@@ -112,7 +112,7 @@ memorylens/                  The installable package (pip install memorylens)
 │   ├── providers.py         LLM provider abstraction (Groq, OpenAI, Anthropic, Ollama…)
 │   ├── storage.py           SQLite store for benchmark runs (experiment_logs/memorylens.db)
 │   └── migrate_legacy_logs.py  One-shot legacy JSON → SQLite import
-├── api.py                   FastAPI REST server (optional dep: memorylens[server])
+├── api.py                   FastAPI REST server (optional dep: memorylens-bench[server])
 └── cli.py                   CLI entry point (`memorylens` command)
 
 tests/                       Integration tests — run with: pytest tests/ -v

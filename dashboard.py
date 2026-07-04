@@ -82,7 +82,7 @@ with st.sidebar:
         "Memory backends",
         ALL_BACKENDS,
         default=["naive", "rag", "cascading"],
-        help='faiss requires the optional dependency: pip install "memorylens[faiss]"',
+        help='faiss requires the optional dependency: pip install "memorylens-bench[faiss]"',
     )
     st.divider()
 

@@ -454,7 +454,7 @@ def test_faiss_backend_or_missing_dep_error():
             _make_memory("faiss")
             assert False, "Expected ImportError when faiss is not installed"
         except ImportError as e:
-            assert "memorylens[faiss]" in str(e), f"Error should name the extra: {e}"
+            assert "memorylens-bench[faiss]" in str(e), f"Error should name the extra: {e}"
         print("SKIP: faiss not installed (missing-dep error message verified)")
         return
 

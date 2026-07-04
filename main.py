@@ -1,4 +1,4 @@
-"""Backward-compatible entry point. Prefer `memorylens` after `pip install memorylens`."""
+"""Backward-compatible entry point. Prefer the `memorylens` CLI after `pip install memorylens-bench`."""
 
 from memorylens.cli import main
 
